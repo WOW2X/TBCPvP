@@ -95,8 +95,6 @@ CreatureEventAI::CreatureEventAI(Creature *c) : CreatureAI(c)
     MeleeEnabled = true;
     AttackDistance = 0.0f;
     AttackAngle = 0.0f;
-    DynamicMovement = false;
-    LastSpellMaxRange = 0.0f;
 
     InvinceabilityHpLevel = 0;
 
@@ -508,87 +506,55 @@ void CreatureEventAI::ProcessAction(CreatureEventAI_Action const& action, uint32
         {
             Unit* target = GetTargetByType(action.cast.target, pActionInvoker);
             Unit* caster = me;
-
-            if (!target)
-                return;
+            const SpellEntry* spell = sSpellStore.LookupEntry(action.cast.spellId);
 
             if (action.cast.castFlags & CAST_FORCE_TARGET_SELF)
                 caster = target;
 
-            // Allowed to cast only if not casting (unless we interrupt ourself) or if spell is triggered
-            bool canCast = !caster->IsNonMeleeSpellCasted(false) || (action.cast.castFlags & (CAST_TRIGGERED | CAST_INTURRUPT_PREVIOUS));
+            SpellCastResult castResult = CanCast(target, spell, action.cast.castFlags);
 
-            // If cast flag CAST_AURA_NOT_PRESENT is active, check if target already has aura on them
-            if (action.cast.castFlags & CAST_AURA_NOT_PRESENT)
+            switch (castResult)
             {
-                if (target->HasAura(action.cast.spellId, 0))
-                    return;
-            }
-
-            if (canCast && !caster->ToCreature()->HasSpellCooldown(action.cast.spellId))
-            {
-                const SpellEntry* tSpell = GetSpellStore()->LookupEntry(action.cast.spellId);
-
-                //Verify that spell exists
-                if (tSpell)
+                case SPELL_FAILED_NO_POWER:
+                case SPELL_FAILED_OUT_OF_RANGE:
+                case SPELL_FAILED_LINE_OF_SIGHT:
                 {
-                    if (action.cast.castFlags & CAST_COMBAT_MOVE)
+                    // Melee current victim if flag not set
+                    if (!(action.cast.castFlags & CAST_NO_MELEE_IF_OOM))
                     {
-                        // If cast flag SMARTCAST_COMBAT_MOVE is set combat movement will not be allowed
-                        // unless target is outside spell range, out of mana, or LOS.
-
-                        bool allowMove = false;
-                        int32 mana = me->GetPower(POWER_MANA);
-
-                        if (me->GetDistance(target) > GetSpellMaxRange(tSpell) ||
-                            me->GetDistance(target) < GetSpellMinRange(tSpell) ||
-                            !me->IsWithinLOSInMap(target) ||
-                            mana < CalculatePowerCost(tSpell, me, SpellSchoolMask(tSpell->SchoolMask)))
-                            allowMove = true;
-
-                        SetCombatMove(allowMove);
-                    }
-
-                    //Check if cannot cast spell
-                    if (!(action.cast.castFlags & (CAST_FORCE_TARGET_SELF | CAST_FORCE_CAST)) &&
-                        !CanCast(target, tSpell, (action.cast.castFlags & CAST_TRIGGERED)))
-                    {
-                        //Melee current victim if flag not set
-                        if (!(action.cast.castFlags & CAST_NO_MELEE_IF_OOM))
+                        switch (me->GetMotionMaster()->GetCurrentMovementGeneratorType())
                         {
-                            if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == TARGETED_MOTION_TYPE)
+                            case TARGETED_MOTION_TYPE:
+                            case ASSISTANCE_MOTION_TYPE:
+                            case IDLE_MOTION_TYPE:
                             {
                                 AttackDistance = 0.0f;
                                 AttackAngle = 0.0f;
 
                                 me->GetMotionMaster()->MoveChase(me->getVictim(), AttackDistance, AttackAngle);
+                                break;
                             }
-                        }
-                        else if (DynamicMovement)
-                            LastSpellMaxRange = 0.0f;
-                    }
-                    else
-                    {
-                        // Interrupt any previous spell
-                        if (caster->IsNonMeleeSpellCasted(false) && action.cast.castFlags & CAST_INTURRUPT_PREVIOUS)
-                            caster->InterruptNonMeleeSpells(false);
-
-                        caster->CastSpell(target, action.cast.spellId, (action.cast.castFlags & CAST_TRIGGERED));
-
-                        if (DynamicMovement)
-                        {
-                            if (tSpell && !(tSpell->rangeIndex == 2 /*SPELL_RANGE_IDX_COMBAT*/ || tSpell->rangeIndex == 1 /*SPELL_RANGE_IDX_SELF_ONLY*/) && target != me)
-                            {
-                                SpellRangeEntry const* spellRange = sSpellRangeStore.LookupEntry(tSpell->rangeIndex);
-                                if (spellRange)
-                                    LastSpellMaxRange = spellRange->maxRange;
-                            }
+                            default:
+                                break;
                         }
                     }
+                    break;
                 }
-                else
-                    sLog->outErrorDb("CreatureEventAI: event %d creature %d attempt to cast spell that doesn't exist %d", EventId, me->GetEntry(), action.cast.spellId);
+                case SPELL_CAST_OK:
+                {
+                    // Interrupt any previous spell
+                    if (action.cast.castFlags & CAST_INTURRUPT_PREVIOUS && caster->IsNonMeleeSpellCasted(false))
+                        caster->InterruptNonMeleeSpells(false);
+
+                    me->CastSpell(target, spell, action.cast.castFlags & CAST_TRIGGERED, NULL, NULL);
+
+                    break;
+                }
+
+                default:
+                    break;
             }
+
             break;
         }
         case ACTION_T_SUMMON:
@@ -655,7 +621,29 @@ void CreatureEventAI::ProcessAction(CreatureEventAI_Action const& action, uint32
             MeleeEnabled = action.auto_attack.state != 0;
             break;
         case ACTION_T_COMBAT_MOVEMENT:
-            SetCombatMove(action.combat_movement.state != 0);
+            // ignore no affect case
+            if (CombatMovementEnabled == (action.combat_movement.state != 0))
+                return;
+
+            CombatMovementEnabled = action.combat_movement.state != 0;
+
+            //Allow movement (create new targeted movement gen only if idle)
+            if (CombatMovementEnabled)
+            {
+                if (action.combat_movement.melee && me->isInCombat())
+                    if (Unit* victim = me->getVictim())
+                        me->SendMeleeAttackStart(victim);
+
+                me->GetMotionMaster()->MoveChase(me->getVictim(), AttackDistance, AttackAngle);
+            }
+            else
+            {
+                if (action.combat_movement.melee && me->isInCombat())
+                    if (Unit* victim = me->getVictim())
+                        me->SendMeleeAttackStop(victim);
+
+                me->GetMotionMaster()->MoveIdle();
+            }
             break;
         case ACTION_T_SET_PHASE:
             Phase = action.set_phase.phase;
@@ -855,15 +843,6 @@ void CreatureEventAI::ProcessAction(CreatureEventAI_Action const& action, uint32
             else
                 me->Unmount();
 
-            break;
-        }
-        case ACTION_T_DYNAMIC_MOVEMENT:
-        {
-            if (action.dynamicMovement.state && DynamicMovement || !action.dynamicMovement.state && !DynamicMovement)
-                break;
-
-            DynamicMovement = action.dynamicMovement.state;
-            CombatMovementEnabled = !DynamicMovement;
             break;
         }
 
@@ -1194,31 +1173,9 @@ void CreatureEventAI::UpdateAI(const uint32 diff)
         }
     }
 
-    // Melee Auto-Attack (getVictim might be nullptr as result of timer based events and actions)
-    if (Combat && me->getVictim())
-    {
-        // Update creature dynamic movement position before doing anything else
-        if (DynamicMovement)
-        {
-            if (!me->hasUnitState(UNIT_STAT_LOST_CONTROL) && !me->IsNonMeleeSpellCasted(false))
-            {
-                if (LastSpellMaxRange && me->IsInRange(me->getVictim(), 0, (LastSpellMaxRange * 0.5f)))
-                {
-                    CombatMovementEnabled = false;
-                    if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == TARGETED_MOTION_TYPE)
-                        me->StopMoving();
-                }
-                else
-                {
-                    CombatMovementEnabled = true;
-                    if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() != TARGETED_MOTION_TYPE)
-                        me->GetMotionMaster()->MoveChase(me->getVictim(), AttackDistance, AttackAngle);
-                }
-            }
-        }
-        else if (MeleeEnabled)
-            DoMeleeAttackIfReady();
-    }
+    //Melee Auto-Attack
+    if (Combat && MeleeEnabled)
+        DoMeleeAttackIfReady();
 }
 
 inline uint32 CreatureEventAI::GetRandActionParam(uint32 rnd, uint32 param1, uint32 param2, uint32 param3)
@@ -1261,8 +1218,6 @@ inline Unit* CreatureEventAI::GetTargetByType(uint32 Target, Unit* pActionInvoke
             return SelectTarget(SELECT_TARGET_RANDOM, 1);
         case TARGET_T_ACTION_INVOKER:
             return pActionInvoker;
-        case TARGET_T_ACTION_INVOKER_OWNER:
-            return pActionInvoker ? pActionInvoker->GetCharmerOrOwnerOrSelf() : nullptr;
         default:
             return NULL;
     };
@@ -1278,7 +1233,7 @@ Unit* CreatureEventAI::DoSelectLowestHpFriendly(float range, uint32 MinHPDiff)
     Unit* pUnit = NULL;
 
     Trinity::MostHPMissingInRange u_check(me, range, MinHPDiff);
-    Trinity::UnitLastSearcher<Trinity::MostHPMissingInRange> searcher(me, pUnit, u_check);
+    Trinity::UnitLastSearcher<Trinity::MostHPMissingInRange> searcher(pUnit, u_check);
 
     TypeContainerVisitor<Trinity::UnitLastSearcher<Trinity::MostHPMissingInRange>, GridTypeMapContainer >  grid_unit_searcher(searcher);
 
@@ -1294,7 +1249,7 @@ void CreatureEventAI::DoFindFriendlyCC(std::list<Creature*>& _list, float range)
     cell.SetNoCreate();
 
     Trinity::FriendlyCCedInRange u_check(me, range);
-    Trinity::CreatureListSearcher<Trinity::FriendlyCCedInRange> searcher(me, _list, u_check);
+    Trinity::CreatureListSearcher<Trinity::FriendlyCCedInRange> searcher(_list, u_check);
 
     TypeContainerVisitor<Trinity::CreatureListSearcher<Trinity::FriendlyCCedInRange>, GridTypeMapContainer >  grid_creature_searcher(searcher);
 
@@ -1309,7 +1264,7 @@ void CreatureEventAI::DoFindFriendlyMissingBuff(std::list<Creature*>& _list, flo
     cell.SetNoCreate();
 
     Trinity::FriendlyMissingBuffInRange u_check(me, range, spellid);
-    Trinity::CreatureListSearcher<Trinity::FriendlyMissingBuffInRange> searcher(me, _list, u_check);
+    Trinity::CreatureListSearcher<Trinity::FriendlyMissingBuffInRange> searcher(_list, u_check);
 
     TypeContainerVisitor<Trinity::CreatureListSearcher<Trinity::FriendlyMissingBuffInRange>, GridTypeMapContainer >  grid_creature_searcher(searcher);
 
@@ -1393,33 +1348,50 @@ void CreatureEventAI::DoScriptText(int32 textEntry, WorldObject* pSource, Unit* 
     }
 }
 
-bool CreatureEventAI::CanCast(Unit* Target, SpellEntry const *Spell, bool Triggered)
+SpellCastResult CreatureEventAI::CanCast(Unit* target, SpellEntry const* spell, uint32 flags)
 {
-    //No target so we can't cast
-    if (!Target || !Spell)
-        return false;
+    Unit* caster = me;
 
-    //Silenced so we can't cast
-    if (!Triggered && me->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SILENCED))
-        return false;
+    if (!spell)
+        return SPELL_FAILED_UNKNOWN;
 
-    //Check for power
-    if (!Triggered && me->GetPower((Powers)Spell->powerType) < CalculatePowerCost(Spell, me, GetSpellSchoolMask(Spell)))
-        return false;
+    // Allowed to cast only if not casting (unless we interrupt ourself) or if spell is triggered
+    if (!caster->IsNonMeleeSpellCasted(false) || (flags & (CAST_TRIGGERED | CAST_INTURRUPT_PREVIOUS)))
+    {
+        // No target so we can't cast
+        if (!target)
+            return SPELL_FAILED_BAD_TARGETS;
 
-    SpellRangeEntry const *TempRange = NULL;
+        // If cast flag CAST_AURA_NOT_PRESENT is active, check if target already has aura on them
+        if (flags & CAST_AURA_NOT_PRESENT)
+        {
+            if (target->HasAura(spell->Id, 0))
+                return SPELL_FAILED_TARGET_AURASTATE;
+        }
 
-    TempRange = GetSpellRangeStore()->LookupEntry(Spell->rangeIndex);
+        // Silenced so we can't cast
+        if (!(flags & CAST_TRIGGERED) && me->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SILENCED))
+            return SPELL_FAILED_SILENCED;
 
-    //Spell has invalid range store so we can't use it
-    if (!TempRange)
-        return false;
+        // Target is not within LoS
+        if (!caster->IsWithinLOSInMap(target) && !caster->IsWithinLOS(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ()))
+            return SPELL_FAILED_LINE_OF_SIGHT;
 
-    //Unit is out of range of this spell
-    if (!me->IsInRange(Target, TempRange->minRange, TempRange->maxRange))
-        return false;
+        // Check for power
+        if (!(flags & CAST_TRIGGERED) && me->GetPower((Powers)spell->powerType) < CalculatePowerCost(spell, me, GetSpellSchoolMask(spell)))
+            return SPELL_FAILED_NO_POWER;
 
-    return true;
+        SpellRangeEntry const* TempRange = NULL;
+        TempRange = GetSpellRangeStore()->LookupEntry(spell->rangeIndex);
+
+        //Unit is out of range of this spell
+        if (!me->IsInRange(target, TempRange->minRange, TempRange->maxRange))
+            return SPELL_FAILED_OUT_OF_RANGE;
+
+        return SPELL_CAST_OK;
+    }
+    else
+        return SPELL_FAILED_SPELL_IN_PROGRESS;
 }
 
 void CreatureEventAI::ReceiveEmote(Player* player, uint32 text_emote)
@@ -1476,35 +1448,5 @@ bool CreatureEventAI::SpawnedEventConditionsCheck(CreatureEventAI_Event const& e
     }
 
     return false;
-}
-
-void CreatureEventAI::SetCombatMove(bool on)
-{
-    if (CombatMovementEnabled == on)
-        return;
-
-    CombatMovementEnabled = on;
-
-    if (!IsEscorted())
-    {
-        if (on && me->getVictim())
-        {
-            if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE)
-            {
-                me->GetMotionMaster()->MoveChase(me->getVictim());
-                me->CastStop();
-            }
-        }
-        else
-        {
-            if (me->hasUnitState(UNIT_STAT_CONFUSED | UNIT_STAT_FLEEING))
-                return;
-
-            me->GetMotionMaster()->MovementExpired();
-            me->GetMotionMaster()->Clear(true);
-            me->StopMoving();
-            me->GetMotionMaster()->MoveIdle();
-        }
-    }
 }
 

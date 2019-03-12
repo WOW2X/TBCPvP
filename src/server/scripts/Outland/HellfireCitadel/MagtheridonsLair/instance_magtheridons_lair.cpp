@@ -1,4 +1,5 @@
  /*
+  * Copyright (C) 2008-2017 Smolderforge <https://ww.smolderforge.com/>
   * Copyright (C) 2010-2012 Project SkyFire <http://www.projectskyfire.org/>
   * Copyright (C) 2010-2012 Oregon <http://www.oregoncore.com/>
   * Copyright (C) 2006-2008 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
@@ -49,10 +50,14 @@ struct instance_magtheridons_lair : public ScriptedInstance
     uint64 MagtheridonGUID;
     std::set<uint64> ChannelerGUID;
     uint64 DoorGUID;
+    std::set<uint64> CubeGUID;
     std::set<uint64> ColumnGUID;
 
     uint32 CageTimer;
+    uint32 CageWarningTimer;
     uint32 RespawnTimer;
+
+    uint8 deadChannelers;
 
     void Initialize()
     {
@@ -62,10 +67,14 @@ struct instance_magtheridons_lair : public ScriptedInstance
         MagtheridonGUID = 0;
         ChannelerGUID.clear();
         DoorGUID = 0;
+        CubeGUID.clear();
         ColumnGUID.clear();
 
         CageTimer = 0;
+        CageWarningTimer = 0;
         RespawnTimer = 0;
+
+        deadChannelers = 0;
     }
 
     bool IsEncounterInProgress() const
@@ -93,7 +102,8 @@ struct instance_magtheridons_lair : public ScriptedInstance
         switch (pGo->GetEntry())
         {
         case 181713:
-            pGo->SetUInt32Value(GAMEOBJECT_FLAGS, 0);
+            pGo->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NO_INTERACT);
+            CubeGUID.insert(pGo->GetGUID());
             break;
         case 183847:
             DoorGUID = pGo->GetGUID();
@@ -127,74 +137,109 @@ struct instance_magtheridons_lair : public ScriptedInstance
         case DATA_MAGTHERIDON_EVENT:
             Encounters[0] = data;
             if (data == NOT_STARTED)
-                RespawnTimer = 10000;
-            if (data != IN_PROGRESS)
+            {
+                RespawnTimer = 5000;
+
+                for (std::set<uint64>::iterator i = CubeGUID.begin(); i != CubeGUID.end(); ++i)
+                {
+                    if (GameObject *cube = instance->GetGameObject(*i))
+                    {
+                        cube->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NO_INTERACT);
+                    }
+                }
+            }
+            if (data == IN_PROGRESS)
+            {
+                for (std::set<uint64>::iterator i = CubeGUID.begin(); i != CubeGUID.end(); ++i)
+                {
+                    if (GameObject *cube = instance->GetGameObject(*i))
+                    {
+                        cube->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NO_INTERACT);
+                    }
+                }
+            }
+            if (data == DONE)
             {
                 if (GameObject *Door = instance->GetGameObject(DoorGUID))
                     Door->SetGoState(GO_STATE_ACTIVE);
             }
             break;
+
         case DATA_CHANNELER_EVENT:
             switch (data)
             {
             case NOT_STARTED: // Reset all channelers once one is reset.
-                if (Encounters[1] != NOT_STARTED)
-                {
-                    Encounters[1] = NOT_STARTED;
-                    for (std::set<uint64>::iterator i = ChannelerGUID.begin(); i != ChannelerGUID.end(); ++i)
-                    {
-                        if (Creature *Channeler = instance->GetCreature(*i))
-                        {
-                            if (Channeler->isAlive())
-                                Channeler->AI()->EnterEvadeMode();
-                            else
-                                Channeler->Respawn();
-                        }
-                    }
-                    CageTimer = 0;
-                    if (GameObject *Door = instance->GetGameObject(DoorGUID))
-                        Door->SetGoState(GO_STATE_ACTIVE);
-                }break;
-            case IN_PROGRESS: // Event start.
-                if (Encounters[1] != IN_PROGRESS)
-                {
-                    Encounters[1] = IN_PROGRESS;
-                    // Let all five channelers aggro.
-                    for (std::set<uint64>::iterator i = ChannelerGUID.begin(); i != ChannelerGUID.end(); ++i)
-                    {
-                        Creature *Channeler = instance->GetCreature(*i);
-                        if (Channeler && Channeler->isAlive())
-                            Channeler->AI()->AttackStart(Channeler->SelectNearestTarget(999));
-                    }
-                    // Release Magtheridon after two minutes.
-                    Creature *Magtheridon = instance->GetCreature(MagtheridonGUID);
-                    if (Magtheridon && Magtheridon->isAlive())
-                    {
-                        Magtheridon->TextEmote("'s bonds begin to weaken!", 0);
-                        CageTimer = 120000;
-                    }
-                    if (GameObject *Door = instance->GetGameObject(DoorGUID))
-                        Door->SetGoState(GO_STATE_READY);
-                }break;
-            case DONE: // Add buff and check if all channelers are dead.
+            {
+                if (Encounters[1] == NOT_STARTED)
+                    return;
+
+                Encounters[1] = NOT_STARTED;
                 for (std::set<uint64>::iterator i = ChannelerGUID.begin(); i != ChannelerGUID.end(); ++i)
                 {
-                    Creature *Channeler = instance->GetCreature(*i);
-                    if (Channeler && Channeler->isAlive())
+                    if (Creature *Channeler = instance->GetCreature(*i))
                     {
-                        //Channeler->CastSpell(Channeler, SPELL_SOUL_TRANSFER, true);
-                        data = IN_PROGRESS;
-                        break;
+                        if (Channeler->isAlive())
+                            Channeler->AI()->EnterEvadeMode();
+                        else
+                        {
+                            Channeler->Respawn();
+                            Channeler->AI()->EnterEvadeMode();
+                        }
                     }
-                }break;
+                }
+
+                CageTimer = 0;
+                CageWarningTimer = 0;
+
+                if (GameObject *Door = instance->GetGameObject(DoorGUID))
+                    Door->SetGoState(GO_STATE_ACTIVE);
+                break;
             }
+
+            case IN_PROGRESS: // Event start.
+            {
+                if (Encounters[1] == IN_PROGRESS)
+                    return;
+
+                Encounters[1] = IN_PROGRESS;
+
+                // Release Magtheridon after two minutes, send warning after one.
+                Creature *Magtheridon = instance->GetCreature(MagtheridonGUID);
+                if (Magtheridon && Magtheridon->isAlive())
+                {
+                    Magtheridon->TextEmote("'s bonds begin to weaken!", 0);
+                    CageTimer = 120000;
+                    CageWarningTimer = 60000;
+                }
+                if (GameObject *Door = instance->GetGameObject(DoorGUID))
+                    Door->SetGoState(GO_STATE_READY);
+                break;
+            }
+            case SPECIAL:
+            {
+                ++deadChannelers;
+                if (deadChannelers >= 5)
+                {
+                    CageTimer = 0; // cancel cage
+                    CageWarningTimer = 0; // cancel warning
+                    if (Creature *Magtheridon = instance->GetCreature(MagtheridonGUID))
+                        Magtheridon->AI()->EnterCombat(NULL); // will invoke DoFreed()
+
+                    data = DONE;
+                }
+            }
+            break;
+            }
+
             Encounters[1] = data;
             break;
+
         case DATA_COLLAPSE:
             // true - collapse / false - reset
             for (std::set<uint64>::iterator i = ColumnGUID.begin(); i != ColumnGUID.end(); ++i)
                 HandleGameObject(*i, data);
             break;
+
         default:
             break;
         }
@@ -202,8 +247,12 @@ struct instance_magtheridons_lair : public ScriptedInstance
 
     uint32 GetData(uint32 type)
     {
-        if (type == DATA_MAGTHERIDON_EVENT)
-            return Encounters[0];
+        switch (type)
+        {
+            case DATA_MAGTHERIDON_EVENT: return Encounters[0];
+            case DATA_CHANNELER_EVENT: return Encounters[1];
+        }
+
         return 0;
     }
 
@@ -211,16 +260,32 @@ struct instance_magtheridons_lair : public ScriptedInstance
     {
         if (CageTimer)
         {
+            Creature *Magtheridon = instance->GetCreature(MagtheridonGUID);
             if (CageTimer <= diff)
             {
-                Creature *Magtheridon = instance->GetCreature(MagtheridonGUID);
                 if (Magtheridon && Magtheridon->isAlive())
                 {
-                    Magtheridon->clearUnitState(UNIT_STAT_STUNNED);
-                    Magtheridon->AI()->AttackStart(Magtheridon->SelectNearestTarget(999));
+                    // triggers DoFreed()
+                    Magtheridon->AI()->EnterCombat(NULL);
                 }
                 CageTimer = 0;
-            } else CageTimer -= diff;
+                deadChannelers = 0;
+            }
+            else
+                CageTimer -= diff;
+        }
+
+        if (CageWarningTimer)
+        {
+            if (CageWarningTimer <= diff) // 1 min left warning
+            {
+                if (Creature *Magtheridon = instance->GetCreature(MagtheridonGUID))
+                    Magtheridon->TextEmote("is nearly free of his bonds!", 0);
+
+                CageWarningTimer = 0;
+            }
+            else
+                CageWarningTimer -= diff;
         }
 
         if (RespawnTimer)
@@ -234,11 +299,19 @@ struct instance_magtheridons_lair : public ScriptedInstance
                         if (Channeler->isAlive())
                             Channeler->AI()->EnterEvadeMode();
                         else
+                        {
                             Channeler->Respawn();
+                            Channeler->AI()->EnterEvadeMode();
+                        }
                     }
                 }
+                deadChannelers = 0;
                 RespawnTimer = 0;
-            } else RespawnTimer -= diff;
+                if (Encounters[0] != DONE)
+                    Encounters[0] = NOT_STARTED;
+            }
+            else
+                RespawnTimer -= diff;
         }
     }
 };

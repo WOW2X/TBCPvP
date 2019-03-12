@@ -49,6 +49,12 @@ struct instance_the_eye : public ScriptedInstance
     uint64 Astromancer;
     uint64 Alar;
 
+    uint64 KaelWindowGUID;
+    uint64 KaelStatueLeftGUID;
+    uint64 KaelStatueRightGUID;
+    uint64 KaelDoorLeftGUID;
+    uint64 KaelDoorRightGUID;
+
     uint8 KaelthasEventPhase;
     uint8 AlarEventPhase;
 
@@ -63,6 +69,12 @@ struct instance_the_eye : public ScriptedInstance
         Kaelthas = 0;
         Astromancer = 0;
         Alar = 0;
+
+        KaelWindowGUID = 0;
+        KaelStatueLeftGUID = 0;
+        KaelStatueRightGUID = 0;
+        KaelDoorLeftGUID = 0;
+        KaelDoorRightGUID = 0;
 
         KaelthasEventPhase = 0;
         AlarEventPhase = 0;
@@ -93,6 +105,31 @@ struct instance_the_eye : public ScriptedInstance
         }
     }
 
+    void OnGameObjectCreate(GameObject* pGo, bool /*add*/)
+    {
+        switch (pGo->GetEntry())
+        {
+            case 184069:
+                KaelWindowGUID = pGo->GetGUID();
+                break;
+            case 184597:
+                KaelStatueLeftGUID = pGo->GetGUID();
+                break;
+            case 184596:
+                KaelStatueRightGUID = pGo->GetGUID();
+                break;
+            case 184324:
+                KaelDoorRightGUID = pGo->GetGUID();
+                break;
+            case 184325:
+                KaelDoorLeftGUID = pGo->GetGUID();
+                break;
+        }
+
+        if (pGo)
+            HandleGameObject(NULL, false, pGo);
+    }
+
     uint64 GetData64(uint32 identifier)
     {
         switch (identifier)
@@ -104,6 +141,8 @@ struct instance_the_eye : public ScriptedInstance
             case DATA_KAELTHAS:                     return Kaelthas;
             case DATA_ASTROMANCER:                  return Astromancer;
             case DATA_ALAR:                         return Alar;
+
+            case DATA_EXPLODE:                      return KaelWindowGUID;
         }
         return 0;
     }
@@ -129,6 +168,14 @@ struct instance_the_eye : public ScriptedInstance
                 KaelthasEventPhase = data;
                 if (Encounters[3] != DONE)
                     Encounters[3] = data;
+                break;
+            case DATA_EXPLODE:
+                if (data == DONE)
+                {
+                    DoUseDoorOrButton(KaelWindowGUID);
+                    DoUseDoorOrButton(KaelStatueLeftGUID);
+                    DoUseDoorOrButton(KaelStatueRightGUID);
+                }
                 break;
         }
         if (data == DONE)

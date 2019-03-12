@@ -276,7 +276,7 @@ inline GameObject* Map::_FindGameObject(WorldObject* pSearchObject, uint32 guid)
     cell.data.Part.reserved = ALL_DISTRICT;
 
     Trinity::GameObjectWithDbGUIDCheck goCheck(*pSearchObject, guid);
-    Trinity::GameObjectSearcher<Trinity::GameObjectWithDbGUIDCheck> checker(pSearchObject, pGameObject, goCheck);
+    Trinity::GameObjectSearcher<Trinity::GameObjectWithDbGUIDCheck> checker(pGameObject, goCheck);
 
     TypeContainerVisitor<Trinity::GameObjectSearcher<Trinity::GameObjectWithDbGUIDCheck>, GridTypeMapContainer > objectChecker(checker);
     cell.Visit(p, objectChecker, *pSearchObject->GetMap());
@@ -389,7 +389,7 @@ void Map::ScriptsProcess()
                     {
                         uint64 targetGUID = target ? target->GetGUID() : 0;
                         uint32 loc_idx = pSource->GetSession()->GetSessionDbLocaleIndex();
-                        std::string text(sObjectMgr->GetTrinityString(step.script->Talk.TextID, loc_idx));
+                        std::string text(sObjectMgr->GetSkyFireString(step.script->Talk.TextID, loc_idx));
 
                         switch (step.script->Talk.ChatType)
                         {
@@ -837,7 +837,7 @@ void Map::ScriptsProcess()
                     cell.data.Part.reserved = ALL_DISTRICT;
 
                     Trinity::CreatureWithDbGUIDCheck target_check(wSource, step.script->CallScript.CreatureEntry);
-                    Trinity::CreatureSearcher<Trinity::CreatureWithDbGUIDCheck> checker(wSource, cTarget, target_check);
+                    Trinity::CreatureSearcher<Trinity::CreatureWithDbGUIDCheck> checker(cTarget, target_check);
 
                     TypeContainerVisitor<Trinity::CreatureSearcher <Trinity::CreatureWithDbGUIDCheck>, GridTypeMapContainer > unit_checker(checker);
                     cell.Visit(p, unit_checker, *wSource->GetMap());

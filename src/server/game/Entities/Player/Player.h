@@ -133,8 +133,8 @@ struct SpellModifier
     Spell const* lastAffected;
 };
 
-typedef std::unordered_map<uint32, PlayerTalent*> PlayerTalentMap;
-typedef std::unordered_map<uint32, PlayerSpell*> PlayerSpellMap;
+typedef UNORDERED_MAP<uint32, PlayerTalent*> PlayerTalentMap;
+typedef UNORDERED_MAP<uint16, PlayerSpell*> PlayerSpellMap;
 typedef std::list<SpellModifier*> SpellModList;
 
 struct SpellCooldown
@@ -195,7 +195,6 @@ struct PlayerCreateInfoItem
 };
 
 typedef std::list<PlayerCreateInfoItem> PlayerCreateInfoItems;
-typedef std::list<uint32> PlayerCreateInfoSpells;
 
 struct PlayerClassLevelInfo
 {
@@ -234,8 +233,7 @@ struct PlayerInfo
     uint16 displayId_m;
     uint16 displayId_f;
     PlayerCreateInfoItems item;
-    PlayerCreateInfoSpells spell;
-    PlayerCreateInfoSpells spell_custom;
+    std::list<CreateSpellPair> spell;
     std::list<uint16> action[4];
 
     PlayerLevelInfo* levelInfo;                             //[level-1] 0..MaxPlayerLevel-1
@@ -518,8 +516,7 @@ enum AtLoginFlags
     AT_LOGIN_RENAME        = 1,
     AT_LOGIN_RESET_SPELLS  = 2,
     AT_LOGIN_RESET_TALENTS = 4,
-    AT_LOGIN_BANNED        = 8,
-    AT_LOGIN_MUTED         = 16
+    AT_LOGIN_BANNED        = 8
 };
 
 typedef std::map<uint32, QuestStatusData> QuestStatusMap;
@@ -558,7 +555,7 @@ struct SkillStatusData
     SkillUpdateState uState;
 };
 
-typedef std::unordered_map<uint32, SkillStatusData> SkillStatusMap;
+typedef UNORDERED_MAP<uint32, SkillStatusData> SkillStatusMap;
 
 class Quest;
 class Spell;
@@ -777,13 +774,6 @@ enum PlayerTalentSpecializations
     TALENT_SPECIALIZATION_TANK      = 3
 };
 
-enum PlayerCharacterMode
-{
-    CHARACTER_MODE_BLIZZLIKE     = 1,
-    CHARACTER_MODE_PRE_INSTANT   = 2,
-    CHARACTER_MODE_INSTANT       = 3
-};
-
 // Player summoning auto-decline time (in secs)
 #define MAX_PLAYER_SUMMON_DELAY                   (2*MINUTE)
 #define MAX_MONEY_AMOUNT                       (0x7FFFFFFF-1)
@@ -979,8 +969,14 @@ class Player : public Unit, public GridObject<Player>
 
         bool TeleportToBGEntryPoint();
 
-        bool HasSummonPending() const;
-        void SendSummonRequestFrom(Unit* summoner);
+        void SetSummonPoint(uint32 mapid, float x, float y, float z)
+        {
+            m_summon_expire = time(NULL) + MAX_PLAYER_SUMMON_DELAY;
+            m_summon_mapid = mapid;
+            m_summon_x = x;
+            m_summon_y = y;
+            m_summon_z = z;
+        }
         void SummonIfPossible(bool agree);
 
         bool Create(uint32 guidlow, const std::string& name, uint8 race, uint8 class_, uint8 gender, uint8 skin, uint8 face, uint8 hairStyle, uint8 hairColor, uint8 facialHair, uint8 outfitId);
@@ -1076,6 +1072,10 @@ class Player : public Unit, public GridObject<Player>
         Pet* GetPet() const;
         Pet* SummonPet(uint32 entry, float x, float y, float z, float ang, PetType petType, uint32 despwtime);
         void RemovePet(Pet* pet, PetSaveMode mode, bool returnreagent = false);
+        //************************************
+        // Removes pet auras, even if the current pet is not summoned (hunter).
+        //************************************
+        void RemovePetAuras(Pet* pet);
         Pet* GetMiniPet();
         void SetMiniPet(Pet* pet) { m_miniPet = pet->GetGUID(); }
         void RemoveMiniPet();
@@ -1084,6 +1084,7 @@ class Player : public Unit, public GridObject<Player>
         void Yell(const std::string& text, const uint32 language);
         void TextEmote(const std::string& text);
         void Whisper(const std::string& text, const uint32 language, uint64 receiver);
+        void Whisper(const std::string& text, const uint32 language, Player* receiver);
         void BuildPlayerChat(WorldPacket *data, uint8 msgtype, const std::string& text, uint32 language) const;
 
         void ChangeRace(Player *player, uint32 newRace);
@@ -1103,6 +1104,7 @@ class Player : public Unit, public GridObject<Player>
         void SendArenaSpectatorAuraRemove(uint32 spell, uint32 cooldown);
         void SendArenaSpectatorSendEndTime(uint32 time);
         void SendAddonMessage(std::string& text, char* prefix);
+        void BuildGladdyUpdate();
         void SendGladdyNotification();
 
         /*********************************************************/
@@ -1116,7 +1118,6 @@ class Player : public Unit, public GridObject<Player>
         Item* GetItemByGuid(uint64 guid) const;
         Item* GetItemByPos(uint16 pos) const;
         Item* GetItemByPos(uint8 bag, uint8 slot) const;
-        Item* GetItemByEntry(uint32 itemEntry) const;
         Bag*  GetBagByPos(uint8 slot) const;
         Item* GetWeaponForAttack(WeaponAttackType attackType, bool useable = false) const;
         Item* GetShield(bool useable = false) const;
@@ -1271,7 +1272,7 @@ class Player : public Unit, public GridObject<Player>
         void AddQuest(Quest const *pQuest, Object *questGiver);
         void CompleteQuest(uint32 quest_id);
         void IncompleteQuest(uint32 quest_id);
-        void RewardQuest(Quest const *quest, uint32 reward, Object* questGiver, bool announce = true);
+        void RewardQuest(Quest const *pQuest, uint32 reward, Object* questGiver, bool announce = true);
 
         void FailQuest(uint32 questId);
         bool SatisfyQuestSkillOrClass(Quest const* qInfo, bool msg);
@@ -1390,6 +1391,8 @@ class Player : public Unit, public GridObject<Player>
         static void SavePositionInDB(uint32 mapid, float x, float y, float z, float o, uint32 zone, uint64 guid);
 
         static void DeleteFromDB(uint64 playerguid, uint32 accountId, bool updateRealmChars = true, bool deleteFinally = false);
+        static void DeleteOldCharacters();
+        static void DeleteOldCharacters(uint32 keepDays);
 
         bool m_mailsLoaded;
         bool m_mailsUpdated;
@@ -1474,7 +1477,7 @@ class Player : public Unit, public GridObject<Player>
         uint8 unReadMails;
         time_t m_nextMailDelivereTime;
 
-        typedef std::unordered_map<uint32, Item*> ItemMap;
+        typedef UNORDERED_MAP<uint32, Item*> ItemMap;
 
         ItemMap mMitems;                                    //template defined in objectmgr.cpp
 
@@ -1512,17 +1515,24 @@ class Player : public Unit, public GridObject<Player>
         void removeSpell(uint32 spell_id, bool disabled = false, bool isFromTalent = false);
         void resetSpells();
         void learnDefaultSpells(bool loading = false);
-        void learnAllSpells(bool loading = false);
         void learnQuestRewardedSpells();
         void learnQuestRewardedSpells(Quest const* quest);
         void learnSpellHighRank(uint32 spellid);
 
         void addTalent(uint32 spellId, uint8 spec, bool learning);
 
+
+        //************************************
+        // Verifies to see if the saved character_talent data
+        // for dual spec are in sync with the character_spells.
+        // Should only be called after _LoadTalents() and _LoadSpells().
+        //************************************
+        void VerifyTalentsActiveSpec();
+
         uint32 GetFreeTalentPoints() const { return GetUInt32Value(PLAYER_CHARACTER_POINTS1); }
         void SetFreeTalentPoints(uint32 points) { SetUInt32Value(PLAYER_CHARACTER_POINTS1, points); }
-        void _ResetTalentMap(uint8 specEntry);
-        bool resetTalents(bool no_cost = false);
+        bool resetTalents(bool no_cost = false, bool spec_change = false);
+
         uint32 resetTalentsCost() const;
         void InitTalentForLevel();
 
@@ -1554,7 +1564,7 @@ class Player : public Unit, public GridObject<Player>
         }
         void AddSpellCooldown(uint32 spell_id, uint32 itemid, time_t end_time);
         void SendCooldownEvent(SpellEntry const *spellInfo);
-        void LockSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs) override;
+        void ProhibitSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs);
         void RemoveSpellCooldown(uint32 spell_id, bool update = false);
         void RemoveArenaSpellCooldowns();
         void RemoveAllSpellCooldown();
@@ -1578,7 +1588,7 @@ class Player : public Unit, public GridObject<Player>
 
         std::string GetSpecName(uint8 spec);
         void SetSpecName(uint8 spec, const char* specName);
-        std::string specName;
+        std::string specNames[MAX_TALENT_SPECS];
 
         void setResurrectRequestData(uint64 guid, uint32 mapId, float X, float Y, float Z, uint32 health, uint32 mana)
         {
@@ -1645,9 +1655,9 @@ class Player : public Unit, public GridObject<Player>
         void DuelComplete(DuelCompleteType type);
         void SendDuelCountdown(uint32 counter);
 
-        bool IsGroupVisibleFor(Player const* p) const;
+        bool IsGroupVisibleFor(Player* p) const;
         bool IsInSameGroupWith(Player const* p) const;
-        bool IsInSameRaidWith(Player const* p) const { return p == this || (GetGroup() != NULL && GetGroup() == p->GetGroup()); }
+        bool IsInSameRaidWith(Player const* p) const { if (!p) return false; return p == this || (GetGroup() != NULL && GetGroup() == p->GetGroup()); }
         void UninviteFromGroup();
         static void RemoveFromGroup(Group* group, uint64 guid);
         void RemoveFromGroup() { RemoveFromGroup(GetGroup(), GetGUID()); }
@@ -1763,14 +1773,13 @@ class Player : public Unit, public GridObject<Player>
         void SendResetInstanceFailed(uint32 reason, uint32 MapId);
         void SendResetFailedNotify(uint32 mapid);
 
-        virtual bool UpdatePosition(float x, float y, float z, float orientation, bool teleport = false);
-        bool UpdatePosition(const Position &pos, bool teleport = false) { return UpdatePosition(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), pos.GetOrientation(), teleport); }
+        virtual bool SetPosition(float x, float y, float z, float orientation, bool teleport = false);
+        bool SetPosition(const Position &pos, bool teleport = false) { return SetPosition(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), pos.GetOrientation(), teleport); }
 
         void UpdateUnderwaterState(Map * m, float x, float y, float z);
 
-        void SendMessageToSet(WorldPacket *data, bool self) { SendMessageToSetInRange(data, GetVisibilityRange(), self); };
-        void SendMessageToSet(WorldPacket *data, Player const* skipped_rcvr) override;
-        void SendMessageToSetInRange(WorldPacket *data, float fist, bool self) override;
+        void SendMessageToSet(WorldPacket *data, bool self);// overwrite Object::SendMessageToSet
+        void SendMessageToSetInRange(WorldPacket *data, float fist, bool self);// overwrite Object::SendMessageToSetInRange
         void SendMessageToSetInRange(WorldPacket *data, float dist, bool self, bool own_team_only);
 
         Corpse *GetCorpse() const;
@@ -1889,8 +1898,6 @@ class Player : public Unit, public GridObject<Player>
         uint32 GetArenaPoints() { return GetUInt32Value(PLAYER_FIELD_ARENA_CURRENCY); }
         void ModifyHonorPoints(int32 value);
         void ModifyArenaPoints(int32 value);
-
-        uint8 GetHighestPvPRankIndex();
         uint32 GetMaxPersonalArenaRatingRequirement();
 
         //End of PvP System
@@ -2099,7 +2106,6 @@ class Player : public Unit, public GridObject<Player>
         /*********************************************************/
 
         std::set<std::string> MessageCache;         // The message cache for the messages will be cleared every x seconds
-        uint32 m_repeatIT;                            // Repeating messages in specific time
         uint32 m_repeatTO;                            // Repeat time out
         uint32 m_speakTimer;                          // The time we last spoken
         uint32 m_speakCount;                          // The total messages
@@ -2107,14 +2113,13 @@ class Player : public Unit, public GridObject<Player>
         bool DoSpamCheck(std::string message);
         bool SpamCheckForType(uint32 Type, uint32 Lang);
 
-        void UpdateSpeakTime(bool Emote = false);
+        void UpdateSpeakTime(bool isEmote = false);
         bool CanSpeak() const;
         void ChangeSpeakTime(int utime);
 
         /*********************************************************/
         /***                 VARIOUS SYSTEMS                   ***/
         /*********************************************************/
-        void UpdateFallInformationIfNeed(MovementInfo const& minfo, uint16 opcode);
         uint32 m_lastFallTime;
         float  m_lastFallZ;
         Unit *m_mover;
@@ -2126,6 +2131,12 @@ class Player : public Unit, public GridObject<Player>
         }
 
         void BuildTeleportAckMsg( WorldPacket *data, float x, float y, float z, float ang) const;
+
+        bool isMoving() const { return HasUnitMovementFlag(MOVEFLAG_MOVING) && !HasUnitMovementFlag(MOVEFLAG_ROOT); }
+        bool isMovingOrTurning() const { return HasUnitMovementFlag(MOVEFLAG_TURNING); }
+
+        bool CanFly() const { return HasUnitMovementFlag(MOVEFLAG_CAN_FLY); }
+        bool IsFlying() const { return HasUnitMovementFlag(MOVEFLAG_FLYING2); }
 
         void HandleFallDamage(MovementInfo& movementInfo);
         void HandleFallUnderMap();
@@ -2157,9 +2168,13 @@ class Player : public Unit, public GridObject<Player>
         uint32 GetSaveTimer() const { return m_nextSave; }
         void   SetSaveTimer(uint32 timer) { m_nextSave = timer; }
 
-        // Recall coordinates
-        void SaveRecallPosition() { m_recall_location.WorldRelocate(*this); }
-        void Recall() { TeleportTo(m_recall_location); }
+        // Recall position
+        uint32 m_recallMap;
+        float  m_recallX;
+        float  m_recallY;
+        float  m_recallZ;
+        float  m_recallO;
+        void   SaveRecallPosition();
 
         // Homebind coordinates
         uint32 m_homebindMapId;
@@ -2176,21 +2191,22 @@ class Player : public Unit, public GridObject<Player>
         typedef UNORDERED_SET<uint64> ClientUnorderedGUIDs;
         ClientUnorderedGUIDs m_clientGUIDs;
 
-        bool HaveAtClient(WorldObject const* u) const { return u == this || m_clientGUIDs.find(u->GetGUID()) != m_clientGUIDs.end(); }
+        bool HaveAtClient(WorldObject const* u) const { if (!u) return false; return u == this || m_clientGUIDs.find(u->GetGUID()) != m_clientGUIDs.end(); }
 
+        bool canSeeOrDetect(Unit const* u, bool detect, bool inVisibleList = false, bool is3dDistance = true) const;
         bool IsVisibleInGridForPlayer(Player const* pl) const;
         bool IsVisibleGloballyFor(Player* pl) const;
-        bool IsVisible() const;
 
         void SendInitialVisiblePackets(Unit* target);
         void UpdateObjectVisibility(bool forced = true);
         void UpdateVisibilityForPlayer();
         void UpdateVisibilityOf(WorldObject* target);
 
-        bool isAlwaysDetectableFor(WorldObject const* seer) const;
-
         template<class T>
             void UpdateVisibilityOf(T* target, UpdateData& data, std::set<Unit*>& visibleNow);
+
+        // Stealth detection system
+        void HandleStealthedUnitsDetection();
 
         uint8 m_forced_speed_changes[MAX_MOVE_TYPE];
 
@@ -2209,14 +2225,15 @@ class Player : public Unit, public GridObject<Player>
 
         void SendCinematicStart(uint32 CinematicSequenceId);
 
-        // Custom Mutligossip Vendor
+        // Custom Multigossip NPCs
         int32 m_currentVendorEntry;
+        int32 m_currentTrainerEntry;
 
         /*********************************************************/
         /***                 INSTANCE SYSTEM                   ***/
         /*********************************************************/
 
-        typedef std::unordered_map< uint32 /*mapId*/, InstancePlayerBind > BoundInstancesMap;
+        typedef UNORDERED_MAP< uint32 /*mapId*/, InstancePlayerBind > BoundInstancesMap;
 
         void UpdateHomebindTime(uint32 time);
 
@@ -2253,7 +2270,6 @@ class Player : public Unit, public GridObject<Player>
         void UnsetAuraUpdateMask(uint8 slot) { m_auraUpdateMask &= ~(uint64(1) << slot); }
         Player* GetNextRandomRaidMember(float radius);
         PartyResult CanUninviteFromGroup() const;
-        void UpdateGroupLeaderFlag(const bool remove = false);
 
         // BattleGround Group System
         void SetBattleGroundRaid(Group *group, int8 subgroup = -1);
@@ -2283,15 +2299,10 @@ class Player : public Unit, public GridObject<Player>
         uint32 GetCustomTitleMask() { return m_customTitleKnown; }
         void SetCustomTitleMask(uint32 titleEntry) { m_customTitleKnown = titleEntry; }
 
-        Unit* getSelectedUnit();
-
-        uint32 GetCombatImmuneTime() { return m_combatImmuneTimer; }
-        void SetCombatImmuneTime(uint32 time) { m_combatImmuneTimer = time; }
-
-        PlayerCharacterMode getCharacterMode() const { return m_characterMode; }
-        void setCharacterMode(PlayerCharacterMode characterMode) { m_characterMode = characterMode; }
-
-        void learnHigherTalentRanks(uint32 spellEntry);
+        bool GetIsFlaggedForRename() { return m_flaggedForRename; }
+        void SetFlaggedForRename(bool flag) { m_flaggedForRename = flag; }
+        bool GetIsFlaggedForGenderSwap() { return m_flaggedForGenderSwap; }
+        void SetFlaggedForGenderSwap(uint32 flag) { m_flaggedForGenderSwap = flag; }
 
     protected:
 
@@ -2361,6 +2372,7 @@ class Player : public Unit, public GridObject<Player>
         void _SaveReputation();
         void _SaveSkills();
         void _SaveTalents();
+        void _SaveTalentSpecNames();
         void _SaveSpells();
         void _SaveTutorials();
         void _SaveBGData();
@@ -2403,8 +2415,6 @@ class Player : public Unit, public GridObject<Player>
 
         uint64 m_comboTarget;
         int8 m_comboPoints;
-
-        uint32 m_combatImmuneTimer;
 
         QuestStatusMap mQuestStatus;
 
@@ -2500,10 +2510,10 @@ class Player : public Unit, public GridObject<Player>
 
         // Player summoning
         time_t m_summon_expire;
-        WorldLocation m_summon_location;
-
-        // Recall position
-        WorldLocation m_recall_location;
+        uint32 m_summon_mapid;
+        float  m_summon_x;
+        float  m_summon_y;
+        float  m_summon_z;
 
         DeclinedName *m_declinedname;
     private:
@@ -2569,8 +2579,9 @@ class Player : public Unit, public GridObject<Player>
         uint32 m_customTitleActive;
         uint32 m_customTitleKnown;
 
-        // Character Mode: Player can either play blizzlike or instant character
-        PlayerCharacterMode m_characterMode;
+        // Race change
+        bool m_flaggedForRename;
+        bool m_flaggedForGenderSwap;
 };
 
 void AddItemsSetItem(Player*player, Item *item);
@@ -2624,4 +2635,3 @@ template <class T> T Player::ApplySpellMod(uint32 spellId, SpellModOp op, T &bas
     return T(diff);
 }
 #endif
-

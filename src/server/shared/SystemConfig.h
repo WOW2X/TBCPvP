@@ -23,7 +23,7 @@
 #include "Define.h"
 #include "revision.h"
 
-#define _PACKAGENAME "TBCPvP"
+#define _PACKAGENAME "Smolderforge"
 
 #if TRINITY_ENDIAN == TRINITY_BIGENDIAN
 # define _ENDIAN_STRING "big-endian"

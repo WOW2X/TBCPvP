@@ -192,7 +192,7 @@ struct boss_akilzonAI : public ScriptedAI
 
             {
                 Trinity::AnyAoETargetUnitInObjectRangeCheck u_check(me, me, 999);
-                Trinity::UnitListSearcher<Trinity::AnyAoETargetUnitInObjectRangeCheck> searcher(me, tempUnitMap, u_check);
+                Trinity::UnitListSearcher<Trinity::AnyAoETargetUnitInObjectRangeCheck> searcher(tempUnitMap, u_check);
 
                 TypeContainerVisitor<Trinity::UnitListSearcher<Trinity::AnyAoETargetUnitInObjectRangeCheck>, WorldTypeMapContainer > world_unit_searcher(searcher);
                 TypeContainerVisitor<Trinity::UnitListSearcher<Trinity::AnyAoETargetUnitInObjectRangeCheck>, GridTypeMapContainer >  grid_unit_searcher(searcher);
@@ -328,7 +328,7 @@ struct boss_akilzonAI : public ScriptedAI
                 CloudGUID = Cloud->GetGUID();
                 Cloud->SetUnitMovementFlags(MOVEFLAG_LEVITATING);
                 Cloud->StopMoving();
-                Cloud->SetFloatValue(OBJECT_FIELD_SCALE_X, 1.0f);
+                Cloud->SetObjectScale(1.0f);
                 Cloud->setFaction(35);
                 Cloud->SetMaxHealth(9999999);
                 Cloud->SetHealth(9999999);
@@ -470,4 +470,3 @@ void AddSC_boss_akilzon()
     newscript->GetAI = &GetAI_mob_soaring_eagle;
     newscript->RegisterSelf();
 }
-

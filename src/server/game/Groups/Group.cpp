@@ -116,10 +116,7 @@ bool Group::Create(const uint64 &guid, const char * name)
     if (!AddMember(guid, name))
         return false;
 
-    if (!isBGGroup())
-        CharacterDatabase.CommitTransaction();
-
-    _updateLeaderFlag();
+    if (!isBGGroup()) CharacterDatabase.CommitTransaction();
 
     return true;
 }
@@ -232,11 +229,8 @@ bool Group::AddLeaderInvite(Player* player)
     if (!AddInvite(player))
         return false;
 
-    _updateLeaderFlag(true);
     m_leaderGuid = player->GetGUID();
     m_leaderName = player->GetName();
-    _updateLeaderFlag();
-
     return true;
 }
 
@@ -308,28 +302,12 @@ uint32 Group::RemoveMember(const uint64 &guid, const uint8 &method)
 {
     BroadcastGroupUpdate();
 
-    Player* player = sObjectMgr->GetPlayer(guid);
-    if (player)
-    {
-        for (GroupReference* itr = GetFirstMember(); itr != nullptr; itr = itr->next())
-        {
-            if (Player* groupMember = itr->getSource())
-            {
-                if (groupMember->GetGUID() == guid)
-                    continue;
-
-                groupMember->RemoveAllGroupBuffsFromCaster(guid);
-                player->RemoveAllGroupBuffsFromCaster(groupMember->GetGUID());
-            }
-        }
-    }
-
     // remove member and change leader (if need) only if strong more 2 members _before_ member remove
     if (GetMembersCount() > (isBGGroup() ? 1 : 2))           // in BG group case allow 1 members group
     {
         bool leaderChanged = _removeMember(guid);
 
-        if (player)
+        if (Player* player = sObjectMgr->GetPlayer(guid))
         {
             WorldPacket data;
 
@@ -393,6 +371,9 @@ void Group::Disband(bool hideDestroy)
         if (!player)
             continue;
 
+        // call update for all party members
+        SendObjectUpdateToMembers(player);
+
         // we cannot call _removeMember because it would invalidate member iterator
         // if we are removing player from battleground raid
         if (isBGGroup())
@@ -443,7 +424,6 @@ void Group::Disband(bool hideDestroy)
         ResetInstances(INSTANCE_RESET_GROUP_DISBAND, NULL);
     }
 
-    _updateLeaderFlag(true);
     m_leaderGuid = 0;
     m_leaderName = "";
 }
@@ -931,6 +911,9 @@ void Group::SendUpdate()
         player = sObjectMgr->GetPlayer(citr->guid);
         if (!player || !player->GetSession() || player->GetGroup() != this)
             continue;
+
+        // call update for all party members
+        SendObjectUpdateToMembers(player);
                                                             // guess size
         WorldPacket data(SMSG_GROUP_LIST, (1+1+1+1+8+4+GetMembersCount()*20));
         data << (uint8)m_groupType;                         // group type
@@ -973,15 +956,17 @@ void Group::UpdatePlayerOutOfRange(Player* player)
     if (!player || !player->IsInWorld())
         return;
 
-    Player* member;
+    if (player->GetGroupUpdateFlag() == GROUP_UPDATE_FLAG_NONE)
+        return;
+
     WorldPacket data;
     player->GetSession()->BuildPartyMemberStatsChangedPacket(player, &data);
 
     for (GroupReference *itr = GetFirstMember(); itr != NULL; itr = itr->next())
     {
-        if (member = itr->getSource())
-            if (member->canSeeOrDetect(player))
-                member->GetSession()->SendPacket(&data);
+        if (Player* member = itr->getSource())
+            if (member != player && !member->HaveAtClient(player))
+            member->GetSession()->SendPacket(&data);
     }
 }
 
@@ -1136,7 +1121,6 @@ bool Group::_removeMember(const uint64 &guid)
 
     if (m_leaderGuid == guid)                                // leader was removed
     {
-        _updateLeaderFlag(true);
         if (GetMembersCount() > 0)
             _setLeader(m_memberSlots.front().guid);
         return true;
@@ -1201,13 +1185,6 @@ void Group::_setLeader(const uint64 &guid)
 
     m_leaderGuid = slot->guid;
     m_leaderName = slot->name;
-    _updateLeaderFlag();
-}
-
-void Group::_updateLeaderFlag(const bool remove /*= false*/)
-{
-    if (Player* player = sObjectMgr->GetPlayer(m_leaderGuid))
-        player->UpdateGroupLeaderFlag(remove);
 }
 
 void Group::_removeRolls(const uint64 &guid)
@@ -1650,30 +1627,42 @@ void Group::_homebindIfInstance(Player* player)
     }
 }
 
-void Group::BroadcastGroupUpdate()
+void Group::BroadcastGroupUpdate(void)
 {
     // FG: HACK: force flags update on group leave - for values update hack
     // -- not very efficient but safe
     for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
     {
-        if (Player *pp = sObjectMgr->GetPlayer(citr->guid))
+        Player *pp = sObjectMgr->GetPlayer(citr->guid);
+        if (pp && pp->IsInWorld())
         {
-            pp->ForceValuesUpdateAtIndex(UNIT_FIELD_HEALTH);
-            pp->ForceValuesUpdateAtIndex(UNIT_FIELD_MAXHEALTH);
             pp->ForceValuesUpdateAtIndex(UNIT_FIELD_BYTES_2);
             pp->ForceValuesUpdateAtIndex(UNIT_FIELD_FACTIONTEMPLATE);
-
-            if (Pet* pet = pp->GetPet())
-            {
-                pet->ForceValuesUpdateAtIndex(UNIT_FIELD_HEALTH);
-                pet->ForceValuesUpdateAtIndex(UNIT_FIELD_MAXHEALTH);
-                pet->ForceValuesUpdateAtIndex(UNIT_FIELD_BYTES_2);
-                pet->ForceValuesUpdateAtIndex(UNIT_FIELD_FACTIONTEMPLATE);
-            }
-
             sLog->outDebug("-- Forced group value update for '%s'", pp->GetName());
         }
     }
 }
 
+void Group::SendObjectUpdateToMembers(Player* player)
+{
+    for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
+    {
+        if (player = sObjectMgr->GetPlayer(citr->guid))
+        {
+            // call update for all party members
+            for (member_citerator citr2 = m_memberSlots.begin(); citr2 != m_memberSlots.end(); ++citr2)
+            {
+                if (citr->guid == citr2->guid)
+                    continue;
+
+                if (Player* member = sObjectMgr->GetPlayer(citr2->guid))
+                {
+                    player->SendUpdateToPlayer(member);
+                    if (Pet* pet = player->GetPet())
+                        pet->SendUpdateToPlayer(member);
+                }
+            }
+        }
+    }
+}
 

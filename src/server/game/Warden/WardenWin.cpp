@@ -28,6 +28,7 @@
 #include "ByteBuffer.h"
 #include "DatabaseEnv.h"
 #include "World.h"
+#include "AccountMgr.h"
 #include "Player.h"
 #include "Util.h"
 #include "WardenWin.h"
@@ -358,7 +359,13 @@ void WardenWin::HandleData(ByteBuffer &buff)
         if (result == 0x00)
         {
             sLog->outWarden("TIMING CHECK FAIL result 0x00");
-            found = true;
+
+            // This check should only kick the player
+            if (sWorld->getConfig(CONFIG_WARDEN_KICK))
+            {
+                Client->KickPlayer();
+                return;
+            }
         }
 
         uint32 newClientTicks;
@@ -493,6 +500,25 @@ void WardenWin::HandleData(ByteBuffer &buff)
         }
     }
 
-    if (found && sWorld->getConfig(CONFIG_WARDEN_KICK))
-        Client->KickPlayer();
+    if (found)
+    {
+        if (sWorld->getConfig(CONFIG_WARDEN_BAN))
+        {
+            std::string accountName = "";
+            std::string playerName = Client->GetPlayerName();
+            std::string banTime = "1d"; // TODO: have incremental bans for hackers
+            std::string reason = "Warden Check Fail, CheckId: ";
+                        std::stringstream s_str; // please update to itos on newer C++ some day...
+                        s_str << rd->id;
+                        reason.append(s_str.str());
+            sAccountMgr->GetName(Client->GetAccountId(), accountName);
+            sWorld->BanAccount(BAN_ACCOUNT, accountName, banTime, reason, "Warden");
+            sWorld->BanAccount(BAN_IP, Client->GetIP(), banTime, reason, "Warden");
+
+            std::string message = "|cfff00000Player " + playerName + " automatically banned for " + banTime + " Reason: Detected use of hacking programs.";
+            sWorld->SendGlobalText(message.c_str(), Client);
+        }
+        else if (sWorld->getConfig(CONFIG_WARDEN_KICK))
+            Client->KickPlayer();
+    }
 }

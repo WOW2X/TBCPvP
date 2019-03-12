@@ -84,7 +84,7 @@ struct boss_high_astromancer_solarianAI : public ScriptedAI
         instance = c->GetInstanceScript();
 
         defaultarmor = me->GetArmor();
-        defaultsize = me->GetFloatValue(OBJECT_FIELD_SCALE_X);
+        defaultsize = me->GetObjectScale();
     }
 
     ScriptedInstance *instance;
@@ -136,7 +136,7 @@ struct boss_high_astromancer_solarianAI : public ScriptedAI
         me->SetArmor(defaultarmor);
         me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
         me->SetVisibility(VISIBILITY_ON);
-        me->SetFloatValue(OBJECT_FIELD_SCALE_X, defaultsize);
+        me->SetObjectScale(defaultsize);
         me->SetDisplayId(DISPLAY_ID_HUMAN);
 
         Summons.DespawnAll();
@@ -157,7 +157,7 @@ struct boss_high_astromancer_solarianAI : public ScriptedAI
 
     void JustDied(Unit *victim)
     {
-        me->SetFloatValue(OBJECT_FIELD_SCALE_X, defaultsize);
+        me->SetObjectScale(defaultsize);
         me->SetDisplayId(DISPLAY_ID_HUMAN);
         DoScriptText(SAY_DEATH, me);
 
@@ -243,14 +243,17 @@ struct boss_high_astromancer_solarianAI : public ScriptedAI
                 {
                     DoCast(me->getVictim(), SPELL_BLINDING_LIGHT);
                     BlindingLight = false;
-                } else{
-                    Unit *pTarget = SelectUnit(SELECT_TARGET_RANDOM, 0);
+                }
+                else
+                {
+                    if (Unit *pTarget = SelectUnit(SELECT_TARGET_RANDOM, 0))
+                    {
+                        if (!me->HasInArc(2.5f, pTarget))
+                            pTarget = me->getVictim();
 
-                    if (!me->HasInArc(2.5f, pTarget))
-                        pTarget = me->getVictim();
-
-                    if (pTarget)
-                        DoCast(pTarget, SPELL_ARCANE_MISSILES);
+                        if (pTarget)
+                            DoCast(pTarget, SPELL_ARCANE_MISSILES);
+                    }
                 }
                 ArcaneMissiles_Timer = 3000;
             } else ArcaneMissiles_Timer -= diff;
@@ -385,7 +388,7 @@ struct boss_high_astromancer_solarianAI : public ScriptedAI
             DoScriptText(SAY_VOIDB, me);
             me->SetArmor(31000);
             me->SetDisplayId(DISPLAY_ID_VOIDWALKER);
-            me->SetFloatValue(OBJECT_FIELD_SCALE_X, defaultsize * 2.5f);
+            me->SetObjectScale(defaultsize * 2.5f);
         }
 
         DoMeleeAttackIfReady();
@@ -482,4 +485,3 @@ void AddSC_boss_high_astromancer_solarian()
     newscript->GetAI = &GetAI_mob_solarium_priest;
     newscript->RegisterSelf();
 }
-

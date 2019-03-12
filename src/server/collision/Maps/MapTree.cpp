@@ -291,7 +291,7 @@ namespace VMAP
 #endif
             if (!iIsTiled && ModelSpawn::readFromFile(rf, spawn))
             {
-                WorldModel *model = vm->acquireModelInstance(iBasePath, spawn.name, spawn.flags);
+                WorldModel *model = vm->acquireModelInstance(iBasePath, spawn.name);
                 sLog->outDebug("StaticMapTree::InitMap(): loading %s", spawn.name.c_str());
                 if (model)
                 {
@@ -346,7 +346,7 @@ namespace VMAP
             char chunk[8];
             if (!readChunk(tf, chunk, VMAP_MAGIC, 8))
                 result = false;
-            uint32 numSpawns;
+            uint32 numSpawns = 0;
             if (result && fread(&numSpawns, sizeof(uint32), 1, tf) != 1)
                 result = false;
             for (uint32 i = 0; i < numSpawns && result; ++i)
@@ -357,7 +357,7 @@ namespace VMAP
                 if (result)
                 {
                     // acquire model instance
-                    WorldModel *model = vm->acquireModelInstance(iBasePath, spawn.name, spawn.flags);
+                    WorldModel *model = vm->acquireModelInstance(iBasePath, spawn.name);
                     if (!model)
                         ERROR_LOG("StaticMapTree::LoadMapTile() could not acquire WorldModel pointer for '%s'!", spawn.name.c_str());
 

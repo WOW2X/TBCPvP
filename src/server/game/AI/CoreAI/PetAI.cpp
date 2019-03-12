@@ -42,6 +42,7 @@ PetAI::PetAI(Creature *c) : CreatureAI(c), i_tracker(TIME_INTERVAL_LOOK)
 {
     m_AllySet.clear();
     UpdateAllies();
+    m_update_forced_speed = true;
 }
 
 void PetAI::EnterEvadeMode()
@@ -74,7 +75,6 @@ void PetAI::_stopAttack()
         return;
     }
 
-    me->ToPet()->SetOriginalTarget(nullptr);
     me->AttackStop();
     me->GetCharmInfo()->SetIsCommandAttack(false);
     HandleReturnMovement();
@@ -123,7 +123,7 @@ void PetAI::UpdateAI(const uint32 diff)
             else
                 HandleReturnMovement();
         }
-        else if (!me->ToPet()->isSpellQueued())
+        else
             HandleReturnMovement();
     }
     else if (owner && !me->hasUnitState(UNIT_STAT_FOLLOW)) // no charm info and no victim
@@ -135,7 +135,8 @@ void PetAI::UpdateAI(const uint32 diff)
     // Autocast (casted only in combat or persistent spells in any state)
     if (me->GetGlobalCooldown() == 0 && !me->hasUnitState(UNIT_STAT_CASTING))
     {
-        targetSpellStore.clear();
+        typedef std::vector<std::pair<Unit*, Spell*> > TargetSpellList;
+        TargetSpellList targetSpellStore;
 
         for (uint8 i = 0; i < me->GetPetAutoSpellSize(); ++i)
         {
@@ -243,10 +244,45 @@ void PetAI::UpdateAI(const uint32 diff)
             delete itr->second;
     }
 
-    // Update speed as needed to prevent dropping too far behind and despawning
-    me->UpdateSpeed(MOVE_RUN, true);
-    me->UpdateSpeed(MOVE_WALK, true);
-    me->UpdateSpeed(MOVE_FLIGHT, true);
+    // Adapt speed to owner, if not in combat
+    if(me->isPet())
+    {
+        Player* owner_player = me->GetOwner()->ToPlayer();
+        Pet* me_pet = me->ToPet();
+
+        if (owner_player && me_pet && me_pet->isControlled())
+        {
+            // Increase the speed to match player
+            // Should not increase speed if pet is in combat, has a target or have a specific aura
+            if (!owner_player->isInCombat() && !me_pet->getVictim() &&
+                !me_pet->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED) &&
+                !me_pet->HasAuraType(SPELL_AURA_MOD_POSSESS_PET) &&
+                !me_pet->HasAuraType(SPELL_AURA_MOD_FEAR) &&
+                !me_pet->HasAuraType(SPELL_AURA_MOD_CHARM) &&
+                !me_pet->HasAuraType(SPELL_AURA_MOD_CONFUSE))
+            {
+                for (uint8 i = 0; i < 2; ++i)
+                {
+                    float ownerSpeed = owner_player->GetSpeedRate(UnitMoveType(i));
+                    float meSpeed = me_pet->GetSpeedRate(UnitMoveType(i));
+
+                    if((ownerSpeed > meSpeed) || (meSpeed > ownerSpeed * 1.10f))
+                        me_pet->SetSpeed(UnitMoveType(i), ownerSpeed * 1.10f, true);
+                }
+
+                m_update_forced_speed = true;
+            }
+            // Update only once
+            else if(m_update_forced_speed)
+            {
+                // Reduce Pet Speed to stop match the player
+                for (uint8 i = 0; i < 2; ++i)
+                    me_pet->UpdateSpeed(UnitMoveType(i), true);
+
+                m_update_forced_speed = false;
+            }
+        }
+    }
 }
 
 void PetAI::UpdateAllies()
@@ -313,7 +349,11 @@ void PetAI::KilledUnit(Unit *victim)
 void PetAI::AttackStart(Unit *target)
 {
     // Overrides Unit::AttackStart to correctly evaluate Pet states
-
+    if (Pet* pet = me->ToPet())
+    {
+        if (pet->hasUnitState(UNIT_STAT_FLEEING | UNIT_STAT_CONFUSED))
+            return;
+    }
     // Check all pet states to decide if we can attack this target
     if (!_CanAttack(target))
         return;
@@ -527,7 +567,7 @@ bool PetAI::_CanAttack(Unit *target)
 
     // Stay - can attack if target is within range or commanded to
     if (me->GetCharmInfo()->HasCommandState(COMMAND_STAY))
-        return (me->IsWithinMeleeRange(target) || me->GetCharmInfo()->IsCommandAttack());
+        return (me->IsWithinMeleeRange(target, MIN_MELEE_REACH) || me->GetCharmInfo()->IsCommandAttack());
 
     // Follow
     if (me->GetCharmInfo()->HasCommandState(COMMAND_FOLLOW))
@@ -537,15 +577,3 @@ bool PetAI::_CanAttack(Unit *target)
     return false;
 }
 
-void PetAI::HandleTaunt(Unit* taunter, bool apply)
-{
-    if (apply)
-        AttackStart(taunter);
-    else
-    {
-        if (Unit* target = me->ToPet()->GetOriginalTarget())
-            AttackStart(target);
-
-        me->ToPet()->SetOriginalTarget(nullptr);
-    }
-}

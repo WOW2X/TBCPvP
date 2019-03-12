@@ -17,6 +17,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AnticheatMgr.h"
 #include "Common.h"
 #include "DatabaseEnv.h"
 #include "Config.h"
@@ -60,7 +61,6 @@
 #include "CreatureEventAIMgr.h"
 #include "ScriptMgr.h"
 #include "WardenDataStorage.h"
-#include "WhoListStorage.h"
 
 volatile bool World::m_stopEvent = false;
 uint8 World::m_ExitCode = SHUTDOWN_EXIT_CODE;
@@ -887,9 +887,7 @@ void World::LoadConfigSettings(bool reload)
     m_configs[CONFIG_CHATFLOOD_MUTE_TIME]     = ConfigMgr::GetIntDefault("ChatFlood.MuteTime", 10);
     m_configs[CONFIG_CHATFLOOD_CAPS_LENGTH] = ConfigMgr::GetIntDefault("ChatFlood.CMessageLength", 100);
     m_configs[CONFIG_CHATFLOOD_CAPS_PCT] = ConfigMgr::GetFloatDefault("ChatFlood.CMessagePct", 70);
-    m_configs[CONFIG_CHATFLOOD_REPEAT_MESSAGES] = ConfigMgr::GetIntDefault("ChatFlood.RepeatMessages", 5);
     m_configs[CONFIG_CHATFLOOD_REPEAT_TIMEOUT] = ConfigMgr::GetIntDefault("ChatFlood.RepeatTimeOut", 10);
-    m_configs[CONFIG_CHATFLOOD_REPEAT_MUTE] = ConfigMgr::GetIntDefault("ChatFlood.RepeatMute", 20);
     m_configs[CONFIG_CHATFLOOD_CHATTYPE] = ConfigMgr::GetIntDefault("ChatFlood.ChatType", 1);
     m_configs[CONFIG_CHATFLOOD_EMOTE_COUNT] = ConfigMgr::GetIntDefault("ChatFlood.EmoteCount", 5);
     m_configs[CONFIG_CHATFLOOD_EMOTE_DELAY] = ConfigMgr::GetIntDefault("ChatFlood.EmoteDelay", 5);
@@ -953,6 +951,9 @@ void World::LoadConfigSettings(bool reload)
     m_configs[CONFIG_BATTLEGROUND_PREMATURE_REWARD]             = ConfigMgr::GetBoolDefault("Battleground.PrematureReward", true);
     m_configs[CONFIG_BATTLEGROUND_PREMATURE_FINISH_TIMER]       = ConfigMgr::GetIntDefault("BattleGround.PrematureFinishTimer", 5 * MINUTE * IN_MILLISECONDS);
     m_configs[CONFIG_BATTLEGROUND_WRATH_LEAVE_MODE]             = ConfigMgr::GetBoolDefault("Battleground.LeaveWrathMode", false);
+    m_configs[CONFIG_BATTLEGROUND_WS_MIN_LEGAL_FLAG_CAP_TIME]   = ConfigMgr::GetIntDefault("Battleground.WSMinLegalFlagCapTime", 40000);
+    m_configs[CONFIG_BATTLEGROUND_ON_ILLEGAL_FLAG_CAP]          = ConfigMgr::GetIntDefault("BattleGround.OnIllegalFlagCap", 0);
+    m_configs[CONFIG_BATTLEGROUND_BAN_TIME]                     = ConfigMgr::GetIntDefault("BattleGround.BanTime", 1);
     m_configs[CONFIG_ARENA_RATED_DISABLED]                      = ConfigMgr::GetBoolDefault("Arena.RatedDisabled", false);
     m_configs[CONFIG_ARENA_MAX_RATING_DIFFERENCE]               = ConfigMgr::GetIntDefault("Arena.MaxRatingDifference", 0);
     m_configs[CONFIG_ARENA_RATING_DISCARD_TIMER]                = ConfigMgr::GetIntDefault("Arena.RatingDiscardTimer", 10 * MINUTE * IN_MILLISECONDS);
@@ -1072,6 +1073,9 @@ void World::LoadConfigSettings(bool reload)
     sLog->outString("WORLD: VMap support included. LineOfSight:%i, getHeight:%i, indoorCheck:%i, PetLOS:%i", enableLOS, enableHeight, enableIndoor, enablePetLOS);
     sLog->outString("WORLD: VMap data directory is: %svmaps", m_dataPath.c_str());
 
+    m_configs[CONFIG_VMAP_INDOOR_CHECK] = enableIndoor;
+    m_configs[CONFIG_PET_LOS] = enablePetLOS;
+    m_configs[CONFIG_VMAP_TOTEM] = ConfigMgr::GetBoolDefault("vmap.totem", false);
     m_configs[CONFIG_MAX_WHO] = ConfigMgr::GetIntDefault("MaxWhoListReturns", 49);
 
     m_configs[CONFIG_BG_START_MUSIC] = ConfigMgr::GetBoolDefault("MusicInBattleground", false);
@@ -1120,6 +1124,15 @@ void World::LoadConfigSettings(bool reload)
     }
     delete[] forbiddenMaps;
 
+    //Anticheat
+    m_configs[CONFIG_ANTICHEAT_ENABLE] = ConfigMgr::GetBoolDefault("Anticheat.Enable", true);
+    m_configs[CONFIG_ANTICHEAT_REPORTS_INGAME_NOTIFICATION] = ConfigMgr::GetIntDefault("Anticheat.ReportsForIngameWarnings", 70);
+    m_configs[CONFIG_ANTICHEAT_DETECTIONS_ENABLED] = ConfigMgr::GetIntDefault("Anticheat.DetectionsEnabled",31);
+    m_configs[CONFIG_ANTICHEAT_MAX_REPORTS_FOR_DAILY_REPORT] = ConfigMgr::GetIntDefault("Anticheat.MaxReportsForDailyReport",70);
+    m_configs[CONFIG_ANTICHEAT_KICK_ENABLE] = ConfigMgr::GetBoolDefault("Anticheat.KickEnable", false);
+    m_configs[CONFIG_ANTICHEAT_BAN_ENABLE] = ConfigMgr::GetBoolDefault("Anticheat.BanEnable", false);
+    //m_configs[CONFIG_ANTICHEAT_BAN_TIME] = ConfigMgr::GetStringDefault("Anticheat.BanTime", "1d");
+
     // chat logging
     m_configs[CONFIG_CHATLOG_CHANNEL] = ConfigMgr::GetBoolDefault("ChatLogs.Channel", false);
     m_configs[CONFIG_CHATLOG_WHISPER] = ConfigMgr::GetBoolDefault("ChatLogs.Whisper", false);
@@ -1134,12 +1147,22 @@ void World::LoadConfigSettings(bool reload)
     // warden
     m_configs[CONFIG_WARDEN_ENABLED] = ConfigMgr::GetBoolDefault("Warden.Enabled", false);
     m_configs[CONFIG_WARDEN_KICK] = ConfigMgr::GetBoolDefault("Warden.Kick", false);
+    m_configs[CONFIG_WARDEN_BAN] = ConfigMgr::GetBoolDefault("Warden.Ban", false);
     m_configs[CONFIG_WARDEN_NUM_CHECKS] = ConfigMgr::GetIntDefault("Warden.NumChecks", 3);
     m_configs[CONFIG_WARDEN_CLIENT_CHECK_HOLDOFF] = ConfigMgr::GetIntDefault("Warden.ClientCheckHoldOff", 30);
     m_configs[CONFIG_WARDEN_CLIENT_RESPONSE_DELAY] = ConfigMgr::GetIntDefault("Warden.ClientResponseDelay", 15);
 
     // mmaps
     m_configs[CONFIG_BOOL_MMAP_ENABLED] = ConfigMgr::GetBoolDefault("mmap.enable", true);
+    //MMAP-Changes
+    /*
+    std::string ignoreMMapIds = ConfigMgr::GetStringDefault("mmap.ignoreMapIds", "");
+    MMAP::MMapFactory::preventPathfindingOnMaps(ignoreMMapIds.c_str());
+    */
+    std::string implementMMapIds = ConfigMgr::GetStringDefault("mmap.implementMapIds", "");
+    MMAP::MMapFactory::implementPathFindingOnMaps(implementMMapIds.c_str());
+    //MMAP-Changes
+    sLog->outString("WORLD: Pathfinding %sabled", getConfig(CONFIG_BOOL_MMAP_ENABLED) ? "en" : "dis");
 
     // misc
     m_configs[CONFIG_FREE_ALLY_TRANSFER] = ConfigMgr::GetBoolDefault("Transfer.FreeForAlliance", false);
@@ -1176,8 +1199,8 @@ void World::SetInitialWorldSettings()
 
     ///- Loading strings. Getting no records means core load has to be canceled because no error message can be output.
     sLog->outString();
-    sLog->outString("Loading Trinity strings...");
-    if (!sObjectMgr->LoadTrinityStrings())
+    sLog->outString("Loading SkyFire strings...");
+    if (!sObjectMgr->LoadSkyFireStrings())
         exit(1);                                            // Error message displayed in function already
 
     // Update the realm entry in the database with the realm type from the config file
@@ -1238,9 +1261,6 @@ void World::SetInitialWorldSettings()
 
     sLog->outString("Loading Spell Elixir types...");
     sSpellMgr->LoadSpellElixirs();
-
-    sLog->outString("Loading Spell Bonus data...");
-    sSpellMgr->LoadSpellBonuses();
 
     sLog->outString("Loading Spell Learn Skills...");
     sSpellMgr->LoadSpellLearnSkills();                        // must be after LoadSpellChains
@@ -1434,9 +1454,6 @@ void World::SetInitialWorldSettings()
     sLog->outString("Loading Vendors...");
     sObjectMgr->LoadVendors();                                   // must be after load CreatureTemplate and ItemTemplate
 
-    sLog->outString("Loading Creature Vendor Item Counts...");
-    sObjectMgr->LoadCreatureVendorItemCount();
-
     sLog->outString("Loading Trainers...");
     sObjectMgr->LoadTrainerSpell();                              // must be after load CreatureTemplate
 
@@ -1503,12 +1520,18 @@ void World::SetInitialWorldSettings()
         realmID, uint64(m_startTime), isoDate, _FULLVERSION);       // One-time query
 
     m_timers[WUPDATE_AUTOBROADCAST].SetInterval(m_configs[CONFIG_AUTOBROADCAST_TIMER]);
+    m_timers[WUPDATE_OBJECTS].SetInterval(IN_MILLISECONDS/2);
+    m_timers[WUPDATE_SESSIONS].SetInterval(0);
     m_timers[WUPDATE_WEATHERS].SetInterval(IN_MILLISECONDS);
     m_timers[WUPDATE_AUCTIONS].SetInterval(MINUTE*IN_MILLISECONDS);
-    m_timers[WUPDATE_UPTIME].SetInterval(m_configs[CONFIG_UPTIME_UPDATE]*MINUTE*IN_MILLISECONDS); // Update "uptime" table based on configuration entry in minutes.
-    m_timers[WUPDATE_CORPSES].SetInterval(20 * MINUTE * IN_MILLISECONDS); // erase corpses every 20 minutes
-    m_timers[WUPDATE_CLEANDB].SetInterval(m_configs[CONFIG_LOGDB_CLEARINTERVAL]*MINUTE*IN_MILLISECONDS); // clean logs table every 14 days by default
-    m_timers[WUPDATE_WHO_LIST].SetInterval(10 * IN_MILLISECONDS); // Update who list cache every 30 seconds
+    m_timers[WUPDATE_UPTIME].SetInterval(m_configs[CONFIG_UPTIME_UPDATE]*MINUTE*IN_MILLISECONDS);
+                                                            //Update "uptime" table based on configuration entry in minutes.
+    m_timers[WUPDATE_CORPSES].SetInterval(20 * MINUTE * IN_MILLISECONDS);
+                                                            //erase corpses every 20 minutes
+    m_timers[WUPDATE_CLEANDB].SetInterval(m_configs[CONFIG_LOGDB_CLEARINTERVAL]*MINUTE*IN_MILLISECONDS);
+                                                            // clean logs table every 14 days by default
+
+    m_timers[WUPDATE_DELETECHARS].SetInterval(5 * MINUTE * IN_MILLISECONDS); // check for chars to delete every 5 minutes
 
     //to set mailtimer to return mails every day between 4 and 5 am
     //mailtimer is increased when updating auctions
@@ -1569,6 +1592,9 @@ void World::SetInitialWorldSettings()
     }
     else
         sLog->SetLogDB(false);
+
+    // Delete all characters which have been deleted X days before
+    Player::DeleteOldCharacters();
 
     sLog->outString("WORLD: World initialized");
 }
@@ -1805,6 +1831,13 @@ void World::Update(time_t diff)
     sOutdoorPvPMgr->Update(diff);
     RecordTimeDiff("UpdateOutdoorPvPMgr");
 
+    ///- Delete all characters which have been deleted X days before
+    if (m_timers[WUPDATE_DELETECHARS].Passed())
+    {
+        m_timers[WUPDATE_DELETECHARS].Reset();
+        Player::DeleteOldCharacters();
+    }
+
     // execute callbacks from sql queries that were queued recently
     UpdateResultQueue();
     RecordTimeDiff("UpdateResultQueue");
@@ -1823,13 +1856,6 @@ void World::Update(time_t diff)
         uint32 nextGameEvent = sGameEventMgr->Update();
         m_timers[WUPDATE_EVENTS].SetInterval(nextGameEvent);
         m_timers[WUPDATE_EVENTS].Reset();
-    }
-
-    // Update who list cache
-    if (m_timers[WUPDATE_WHO_LIST].Passed())
-    {
-        m_timers[WUPDATE_WHO_LIST].Reset();
-        sWhoListStorageMgr->Update();
     }
 
     // update the instance reset times
@@ -1905,7 +1931,7 @@ void World::SendWorldText(int32 string_id, ...)
 
             data_list = &data_cache[cache_idx];
 
-            char const* text = sObjectMgr->GetTrinityString(string_id, loc_idx);
+            char const* text = sObjectMgr->GetSkyFireString(string_id, loc_idx);
 
             char buf[1000];
 
@@ -1958,7 +1984,7 @@ void World::SendGMText(int32 string_id, ...)
 
             data_list = &data_cache[cache_idx];
 
-            char const* text = sObjectMgr->GetTrinityString(string_id, loc_idx);
+            char const* text = sObjectMgr->GetSkyFireString(string_id, loc_idx);
 
             char buf[1000];
 
@@ -2450,6 +2476,8 @@ void World::ResetDailyQuests()
     for (SessionMap::iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
         if (itr->second->GetPlayer())
             itr->second->GetPlayer()->ResetDailyQuestStatus();
+
+    sAnticheatMgr->ResetDailyReportStates();
 }
 
 /*void World::SetPlayerLimit(int32 limit, bool needUpdate)

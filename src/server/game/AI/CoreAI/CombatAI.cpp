@@ -118,7 +118,7 @@ void CasterAI::EnterCombat(Unit *who)
     if (spells.empty())
         return;
 
-    uint32 spell = rand() % spells.size();
+    uint32 spell = rand()%spells.size();
     uint32 count = 0;
     for (SpellVct::iterator itr = spells.begin(); itr != spells.end(); ++itr, ++count)
     {
@@ -173,8 +173,8 @@ ArcherAI::ArcherAI(Creature* c) : CreatureAI(c)
     if (!m_minRange)
         m_minRange = MELEE_RANGE;
 
-    me->SetCombatDistance(spellInfo ? GetSpellMaxRange(spellInfo) : 0);
-    me->m_SightDistance = me->GetCombatDistance();
+    me->m_CombatDistance = spellInfo ? GetSpellMaxRange(spellInfo) : 0;
+    me->m_SightDistance = me->m_CombatDistance;
 }
 
 void ArcherAI::AttackStart(Unit* who)
@@ -190,7 +190,7 @@ void ArcherAI::AttackStart(Unit* who)
     else
     {
         if (me->Attack(who, false))
-            me->GetMotionMaster()->MoveChase(who, me->GetCombatDistance());
+            me->GetMotionMaster()->MoveChase(who, me->m_CombatDistance);
     }
 }
 

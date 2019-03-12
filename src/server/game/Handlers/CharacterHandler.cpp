@@ -18,6 +18,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AnticheatMgr.h"
 #include "Common.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
@@ -45,7 +46,6 @@
 #include "SystemConfig.h"
 #include "ScriptMgr.h"
 #include "Battleground.h"
-#include "AnticheatMgr.h"
 
 class LoginQueryHolder : public SqlQueryHolder
 {
@@ -80,7 +80,7 @@ bool LoginQueryHolder::Initialize()
         "yesterdayHonorPoints, totalKills, todayKills, yesterdayKills, "
         "chosenTitle, watchedFaction, drunk, health, "
         "powerMana, powerRage, powerFocus, powerEnergy, powerHappiness, instance_id, "
-        "specCount, activeSpec, characterMode "
+        "specCount, activeSpec, activeCustomTitle, knownCustomTitle "
         "FROM characters WHERE guid = '%u'", GUID_LOPART(m_guid));
     res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADGROUP,           "SELECT leaderGuid FROM group_member WHERE memberGuid ='%u'", GUID_LOPART(m_guid));
     res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADBOUNDINSTANCES,  "SELECT id, permanent, map, difficulty, resettime FROM character_instance LEFT JOIN instance ON instance = id WHERE guid = '%u'", GUID_LOPART(m_guid));
@@ -90,7 +90,7 @@ bool LoginQueryHolder::Initialize()
     res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADDAILYQUESTSTATUS, "SELECT quest, time FROM character_queststatus_daily WHERE guid = '%u'", GUID_LOPART(m_guid));
     res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADTUTORIALS,       "SELECT tut0, tut1, tut2, tut3, tut4, tut5, tut6, tut7 FROM character_tutorial WHERE account = '%u' AND realmid = '%u'", GetAccountId(), realmID);
     res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADREPUTATION,      "SELECT faction, standing, flags FROM character_reputation WHERE guid = '%u'", GUID_LOPART(m_guid));
-    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADINVENTORY,       "SELECT data, bag, slot, item, item_template FROM character_inventory JOIN item_instance ON character_inventory.item = item_instance.guid WHERE character_inventory.guid = '%u' ORDER BY bag, slot", GUID_LOPART(m_guid));
+    res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADINVENTORY,       "SELECT itemEntry, creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments, randomPropertyId, durability, itemTextId, bag, slot, item, item_template FROM character_inventory JOIN item_instance ON character_inventory.item = item_instance.guid WHERE character_inventory.guid = '%u' ORDER BY bag,slot", GUID_LOPART(m_guid));
     //res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADACTIONS,         "SELECT button, action, type, misc FROM character_action WHERE guid = '%u' ORDER BY button", GUID_LOPART(m_guid));
     res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADMAILCOUNT,       "SELECT COUNT(id) FROM mail WHERE receiver = '%u' AND (checked & 1)=0 AND deliver_time <= '" UI64FMTD "'", GUID_LOPART(m_guid), (uint64)time(NULL));
     res &= SetPQuery(PLAYER_LOGIN_QUERY_LOADMAILDATE,        "SELECT MIN(deliver_time) FROM mail WHERE receiver = '%u' AND (checked & 1)=0", GUID_LOPART(m_guid));
@@ -646,10 +646,6 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder * holder)
     LoginDatabase.PExecute("UPDATE account SET online = 1 WHERE id = '%u'", GetAccountId());
     pCurrChar->SetInGameTime(getMSTime());
 
-    // announce group about member online (must be after add to player list to receive announce to self)
-    if (Group *group = pCurrChar->GetGroup())
-        group->SendUpdate();
-
     // friend status
     sSocialMgr->SendFriendStatus(pCurrChar, FRIEND_ONLINE, pCurrChar->GetGUIDLow(), true);
 
@@ -694,6 +690,10 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder * holder)
         pCurrChar->resetTalents(true);
         SendNotification(LANG_RESET_TALENTS);
     }
+
+    // announce group about member online (must be after add to player list to receive announce to self)
+    if (Group *group = pCurrChar->GetGroup())
+        group->SendUpdate();
 
     // show time before shutdown if shutdown planned.
     if (sWorld->IsShutdowning())
@@ -1026,4 +1026,3 @@ void WorldSession::HandleDeclinedPlayerNameOpcode(WorldPacket& recv_data)
     data << uint64(guid);
     SendPacket(&data);
 }
-

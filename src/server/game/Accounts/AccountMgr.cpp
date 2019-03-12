@@ -138,7 +138,7 @@ AccountOpResult AccountMgr::ChangePassword(uint32 accid, std::string new_passwd)
 
     LoginDatabase.EscapeString(new_passwd);
     // also reset s and v to force update at next realmd login
-    if (!LoginDatabase.PExecute("UPDATE account SET v='0', s='0', sha_pass_hash=Sha1(" _CONCAT3_("username", "':'", "'%s'")") WHERE id='%d'", new_passwd.c_str(), accid))
+    if (!LoginDatabase.PExecute("UPDATE account SET v='0', s='0', sha_pass_hash=Sha1("_CONCAT3_("username", "':'", "'%s'")") WHERE id='%d'", new_passwd.c_str(), accid))
         return AOR_DB_INTERNAL_ERROR;                       // unexpected error
 
     return AOR_OK;
@@ -159,21 +159,9 @@ uint32 AccountMgr::GetId(std::string username)
 
 uint32 AccountMgr::GetSecurity(uint32 acc_id)
 {
-    QueryResult_AutoPtr result = LoginDatabase.PQuery("SELECT gmlevel FROM account_access WHERE id = '%u'", acc_id);
-    if (result)
-    {
-        uint32 sec = (*result)[0].GetUInt32();
-        return sec;
-    }
-
-    return 0;
-}
-
-uint32 AccountMgr::GetSecurity(uint32 acc_id, int32 realm_id)
-{
-    QueryResult_AutoPtr result = (realm_id == -1)
-        ? LoginDatabase.PQuery("SELECT gmlevel FROM account_access WHERE id = '%u' AND RealmID = '%d'", acc_id, realm_id)
-        : LoginDatabase.PQuery("SELECT gmlevel FROM account_access WHERE id = '%u' AND (RealmID = '%d' OR RealmID = '-1')", acc_id, realm_id);
+    QueryResult_AutoPtr result = (realmID == -1)
+        ? LoginDatabase.PQuery("SELECT gmlevel FROM account_access WHERE id = '%u' AND RealmID = '%d'", acc_id, realmID)
+        : LoginDatabase.PQuery("SELECT gmlevel FROM account_access WHERE id = '%u' AND (RealmID = '%d' OR RealmID = '-1')", acc_id, realmID);
     if (result)
     {
         uint32 sec = (*result)[0].GetUInt32();

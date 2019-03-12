@@ -240,7 +240,8 @@ struct boss_malchezaarAI : public ScriptedAI
         for (uint8 i = 0; i < TOTAL_INFERNAL_POINTS; ++i)
             positions.push_back(&InfernalPoints[i]);
 
-        instance->HandleGameObject(instance->GetData64(DATA_GO_NETHER_DOOR), true);
+        if (instance)
+            instance->HandleGameObject(instance->GetData64(DATA_GO_NETHER_DOOR), true);
     }
 
     void KilledUnit(Unit * /*victim*/)
@@ -260,7 +261,8 @@ struct boss_malchezaarAI : public ScriptedAI
         for (uint8 i = 0; i < TOTAL_INFERNAL_POINTS; ++i)
             positions.push_back(&InfernalPoints[i]);
 
-        instance->HandleGameObject(instance->GetData64(DATA_GO_NETHER_DOOR), true);
+        if (instance)
+            instance->HandleGameObject(instance->GetData64(DATA_GO_NETHER_DOOR), true);
     }
 
     void EnterCombat(Unit * /*who*/)
@@ -269,7 +271,8 @@ struct boss_malchezaarAI : public ScriptedAI
         me->RemoveUnitMovementFlag(MOVEFLAG_WALK_MODE);
         DoScriptText(SAY_AGGRO, me);
 
-        instance->HandleGameObject(instance->GetData64(DATA_GO_NETHER_DOOR), false); // Open the door leading further in
+        if (instance)
+            instance->HandleGameObject(instance->GetData64(DATA_GO_NETHER_DOOR), false); // Open the door leading further in
     }
 
     void InfernalCleanup()
@@ -641,4 +644,3 @@ void AddSC_boss_malchezaar()
     newscript->GetAI = &GetAI_netherspite_infernal;
     newscript->RegisterSelf();
 }
-

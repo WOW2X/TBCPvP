@@ -44,7 +44,6 @@ class Bag : public Item
         void RemoveItem(uint8 slot, bool update);
 
         Item* GetItemByPos(uint8 slot) const;
-        Item* GetItemByEntry(uint32 itemEntry) const;
         uint32 GetItemCount(uint32 item, Item* eItem = NULL) const;
 
         uint8 GetSlotByItemGUID(uint64 guid) const;
@@ -56,7 +55,7 @@ class Bag : public Item
         // overwrite virtual Item::SaveToDB
         void SaveToDB();
         // overwrite virtual Item::LoadFromDB
-        bool LoadFromDB(uint32 guid, uint64 owner_guid, QueryResult_AutoPtr result);
+        bool LoadFromDB(uint32 guid, uint64 owner_guid, Field* fields);
         // overwrite virtual Item::DeleteFromDB
         void DeleteFromDB();
 
@@ -73,4 +72,3 @@ inline Item* NewItemOrBag(ItemPrototype const * proto)
     return (proto->InventoryType == INVTYPE_BAG) ? new Bag : new Item;
 }
 #endif
-

@@ -21,8 +21,8 @@
 #ifndef _VMAPMANAGER2_H
 #define _VMAPMANAGER2_H
 
-#include "Common.h"
 #include "IVMapManager.h"
+#include "UnorderedMap.h"
 #include "Define.h"
 #include "G3D/Vector3.h"
 
@@ -56,8 +56,8 @@ namespace VMAP
             int iRefCount;
     };
 
-    typedef std::unordered_map<uint32 , StaticMapTree *> InstanceTreeMap;
-    typedef std::unordered_map<std::string, ManagedModel> ModelFileMap;
+    typedef UNORDERED_MAP<uint32 , StaticMapTree *> InstanceTreeMap;
+    typedef UNORDERED_MAP<std::string, ManagedModel> ModelFileMap;
 
     class VMapManager2 : public IVMapManager
     {
@@ -93,7 +93,7 @@ namespace VMAP
             bool getAreaInfo(unsigned int pMapId, float x, float y, float &z, uint32 &flags, int32 &adtId, int32 &rootId, int32 &groupId) const;
             bool GetLiquidLevel(uint32 pMapId, float x, float y, float z, uint8 ReqLiquidType, float &level, float &floor, uint32 &type) const;
 
-            WorldModel* acquireModelInstance(const std::string &basepath, const std::string &filename, uint32 flags);
+            WorldModel* acquireModelInstance(const std::string &basepath, const std::string &filename);
             void releaseModelInstance(const std::string &filename);
 
             // what's the use of this? o.O

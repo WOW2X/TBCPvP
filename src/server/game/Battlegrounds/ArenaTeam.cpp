@@ -21,7 +21,7 @@
 #include "ObjectMgr.h"
 #include "WorldPacket.h"
 #include "ArenaTeam.h"
-#include "Chat.h"
+#include "BattlegroundMgr.h"
 
 void ArenaTeamMember::ModifyPersonalRating(Player* plr, int32 mod, uint32 slot)
 {
@@ -81,7 +81,7 @@ bool ArenaTeam::Create(uint64 captainGuid, uint32 type, std::string arenaTeamNam
     // CharacterDatabase.PExecute("DELETE FROM arena_team WHERE arenateamid='%u'", m_TeamId); - MAX(arenateam)+1 not exist
     CharacterDatabase.PExecute("DELETE FROM arena_team_member WHERE arenateamid='%u'", m_TeamId);
     CharacterDatabase.PExecute("INSERT INTO arena_team (arenateamid, name, captainguid, type, BackgroundColor, EmblemStyle, EmblemColor, BorderStyle, BorderColor) "
-        "VALUES('%u', '%s', '%u', '%u', '%u', '%u', '%u', '%u', '%u', '%u')",
+        "VALUES('%u', '%s', '%u', '%u', '%u', '%u', '%u', '%u', '%u')",
         m_TeamId, arenaTeamName.c_str(), GUID_LOPART(m_CaptainGuid), m_Type, m_BackgroundColor, m_EmblemStyle, m_EmblemColor, m_BorderStyle, m_BorderColor);
     CharacterDatabase.PExecute("INSERT INTO arena_team_stats (arenateamid, rating, games, wins, played, wins2, rank) VALUES "
         "('%u', '%u', '%u', '%u', '%u', '%u', '%u')", m_TeamId, m_stats.rating, m_stats.games_week, m_stats.wins_week, m_stats.games_season, m_stats.wins_season, m_stats.rank);
@@ -267,7 +267,17 @@ void ArenaTeam::SetCaptain(const uint64& guid)
     if (Player *newcaptain = sObjectMgr->GetPlayer(guid))
     {
         newcaptain->SetArenaTeamInfoField(GetSlot(), ARENA_TEAM_MEMBER, 0);
-        sLog->outArena("Player: %s [GUID: %u] promoted player: %s [GUID: %u] to leader of arena team [Id: %u] [Type: %u].", oldcaptain->GetName(), oldcaptain->GetGUIDLow(), newcaptain->GetName(), newcaptain->GetGUIDLow(), GetId(), GetType());
+
+        std::string oldCaptainName = "Unknown";
+        uint32 oldCaptainGUID = 0;
+
+        if (oldcaptain)
+        {
+           oldCaptainName = oldcaptain->GetName();
+           oldCaptainGUID = oldcaptain->GetGUIDLow();
+        }
+
+        sLog->outArena("Player: %s [GUID: %u] promoted player: %s [GUID: %u] to leader of arena team [Id: %u] [Type: %u].", oldCaptainName.c_str(), oldCaptainGUID, newcaptain->GetName(), newcaptain->GetGUIDLow(), GetId(), GetType());
     }
 }
 
@@ -282,6 +292,21 @@ void ArenaTeam::DelMember(uint64 guid)
 
     if (Player* player = sObjectMgr->GetPlayer(guid))
     {
+        // remove from arena queue, if queued
+        for (uint8 i = 0; i < PLAYER_MAX_BATTLEGROUND_QUEUES; ++i)
+        {
+            if (uint32 bgQueueType = player->GetBattleGroundQueueId(i))
+            {
+                BattleGround* bg = sBattleGroundMgr->GetBattleGroundTemplate(bgQueueType);
+                if (!bg || !bg->isArena())
+                    break;
+
+                WorldPacket data;
+                sBattleGroundMgr->BuildBattleGroundStatusPacket(&data, bg, player->GetTeam(), player->GetBattleGroundQueueIndex(bgQueueType), STATUS_NONE, 0, 0);
+                player->GetSession()->SendPacket(&data);
+                sBattleGroundMgr->m_BattleGroundQueues[bgQueueType].RemovePlayer(player->GetGUID(), false, bg->GetTypeID());
+            }
+        }
         player->SetInArenaTeam(0, GetSlot());
         player->GetSession()->SendArenaTeamCommandResult(ERR_ARENA_TEAM_QUIT_S, GetName(), "", 0);
         // delete all info regarding this team
@@ -569,8 +594,12 @@ int32 ArenaTeam::WonAgainst(uint32 againstRating, uint32 SoloQueueRating)
     // Smolderforge rating adjustments
     if (GetType() == ARENA_TEAM_5v5) // solo queue
     {
-        if (mod < 1)
-            mod = 1;
+        if (m_stats.rating < 1850)
+            mod += 2;
+        if (mod == 30)
+            mod++;
+        if (mod < 3)
+            mod = 3;
 
         // called for each participant of a match after losing
         for (MemberList::iterator itr = m_members.begin(); itr != m_members.end(); ++itr)
@@ -590,14 +619,18 @@ int32 ArenaTeam::WonAgainst(uint32 againstRating, uint32 SoloQueueRating)
             }
         }
     }
-    else if (GetType() == ARENA_TEAM_2v2)
+    else if (GetType() == ARENA_TEAM_2v2 || GetType() == ARENA_TEAM_3v3)
     {
         if (m_stats.rating < 1850)
             mod += 2;
         if (mod == 30)
             mod++;
-        if (mod < 3)
+        if (mod < 3 && m_stats.rating < 2000)
             mod = 3;
+        if (mod < 2 && m_stats.rating < 2100)
+            mod = 2;
+        if (mod < 1 && m_stats.rating >= 2100)
+            mod = 1;
     }
 
     // modify the team stats accordingly
@@ -631,7 +664,7 @@ int32 ArenaTeam::LostAgainst(uint32 againstRating, uint32 SoloQueueRating)
                 itr->ModifyPersonalRating(plr, mod, GetSlot());
         }
     }
-    else if (GetType() == ARENA_TEAM_2v2)
+    else if (GetType() == ARENA_TEAM_2v2 || GetType() == ARENA_TEAM_3v3)
     {
         if (mod <= -25)
             mod = -24;
@@ -679,7 +712,7 @@ void ArenaTeam::MemberLost(Player * plr, uint32 againstRating)
             int32 mod = (int32)ceil(32.0f) * (0.0f - chance);
 
             // Smolderforge rating adjustments
-            if (GetType() == ARENA_TEAM_2v2)
+            if (GetType() == ARENA_TEAM_2v2 || GetType() == ARENA_TEAM_3v3)
             {
                 if (mod <= -25)
                     mod = -24;
@@ -714,7 +747,7 @@ void ArenaTeam::OfflineMemberLost(uint64 guid, uint32 againstRating)
             int32 mod = (int32)ceil(32.0f * (0.0f - chance));
 
             // Smolderforge rating adjustments
-            if (GetType() == ARENA_TEAM_2v2)
+            if (GetType() == ARENA_TEAM_2v2 || GetType() == ARENA_TEAM_3v3)
                 if (mod <= -25)
                     mod = -24;
 
@@ -749,14 +782,18 @@ void ArenaTeam::MemberWon(Player * plr, uint32 againstRating)
             float chance = GetChanceAgainst(itr->personal_rating, againstRating);
             int32 mod = (int32)floor(32.0f * (1.0f - chance));
 
-            if (GetType() == ARENA_TEAM_2v2)
+            if (GetType() == ARENA_TEAM_2v2 || GetType() == ARENA_TEAM_3v3)
             {
                 if (m_stats.rating < 1850)
                     mod += 2;
                 if (mod == 30)
                     mod++;
-                if (mod < 3)
+                if (mod < 3 && m_stats.rating < 2000)
                     mod = 3;
+                if (mod < 2 && m_stats.rating < 2100)
+                    mod = 2;
+                if (mod < 1 && m_stats.rating >= 2100)
+                    mod = 1;
             }
 
             itr->ModifyPersonalRating(plr, mod, GetSlot());

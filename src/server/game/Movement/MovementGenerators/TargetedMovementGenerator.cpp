@@ -76,7 +76,7 @@ bool TargetedMovementGenerator<T>::_setTargetLocation(T &owner)
             bool stop = false;
             if (!i_offset)
             {
-                if (i_target->IsWithinMeleeRange(&owner))
+                if (i_target->IsWithinMeleeRange(&owner, 0.0f))
                     stop = true;
             }
             else if (!i_angle && !owner.hasUnitState(UNIT_STAT_FOLLOW))
@@ -269,13 +269,6 @@ void TargetedMovementGenerator<T>::Initialize(T &owner)
         owner.RemoveUnitMovementFlag(MOVEFLAG_WALK_MODE);
 
     _setTargetLocation(owner);
-
-    if (owner.ToCreature()->isPet())
-    {
-        owner.UpdateSpeed(MOVE_RUN, true);
-        owner.UpdateSpeed(MOVE_WALK, true);
-        owner.UpdateSpeed(MOVE_SWIM, true);
-    }
 }
 
 template<class T>
@@ -397,7 +390,7 @@ bool TargetedMovementGenerator<T>::Update(T &owner, const uint32 & time_diff)
                 owner.SetInFront(i_target.getTarget());
                 //MMAPS Changes
                 owner.StopMoving();
-                if (owner.IsWithinMeleeRange(i_target.getTarget()) && !owner.hasUnitState(UNIT_STAT_FOLLOW))
+                if (owner.IsWithinMeleeRange(i_target.getTarget(), 1.35f) && !owner.hasUnitState(UNIT_STAT_FOLLOW))
                     owner.Attack(i_target.getTarget(), true);
             }
         }
@@ -436,7 +429,7 @@ bool TargetedMovementGenerator<T>::Update(T &owner, const uint32 & time_diff)
                 owner.SetInFront(i_target.getTarget());
 
                 owner.StopMoving();
-                if (owner.IsWithinMeleeRange(i_target.getTarget()) && !owner.hasUnitState(UNIT_STAT_FOLLOW))
+                if (owner.IsWithinMeleeRange(i_target.getTarget(), 1.35f) && !owner.hasUnitState(UNIT_STAT_FOLLOW))
                     owner.Attack(i_target.getTarget(),true);
             }
         }

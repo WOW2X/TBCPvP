@@ -129,7 +129,7 @@ struct GameObjectInfo
             uint32 serverOnly;                              //8
             uint32 stealthed;                               //9
             uint32 large;                                   //10
-            uint32 invisible;                               //11
+            uint32 stealthAffected;                         //11
             uint32 openTextID;                              //12 can be used to replace castBarCaption?
             uint32 closeTextID;                             //13
         } trap;
@@ -438,7 +438,6 @@ struct GameObjectData
     explicit GameObjectData() : dbData(true) {}
     uint32 id;                                              // entry in gamobject_template
     uint32 mapid;
-    uint32 phaseMask;
     float posX;
     float posY;
     float posZ;
@@ -482,7 +481,7 @@ class GameObject : public WorldObject, public GridObject<GameObject>
         void RemoveFromWorld();
         void CleanupsBeforeDelete();
 
-        bool Create(uint32 guidlow, uint32 name_id, Map *map, uint32 phaseMask, float x, float y, float z, float ang, float rotation0, float rotation1, float rotation2, float rotation3, uint32 animprogress, GOState go_state, uint32 ArtKit = 0);
+        bool Create(uint32 guidlow, uint32 name_id, Map *map, float x, float y, float z, float ang, float rotation0, float rotation1, float rotation2, float rotation3, uint32 animprogress, GOState go_state, uint32 ArtKit = 0);
         void Update(uint32 diff);
         static GameObject* GetGameObject(WorldObject& object, uint64 guid);
         GameObjectInfo const* GetGOInfo() const { return m_goInfo; }
@@ -507,7 +506,7 @@ class GameObject : public WorldObject, public GridObject<GameObject>
         const char* GetNameForLocaleIdx(int32 locale_idx) const;
 
         void SaveToDB();
-        void SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask);
+        void SaveToDB(uint32 mapid, uint8 spawnMask);
         bool LoadFromDB(uint32 guid, Map *map);
         void DeleteFromDB();
 
@@ -603,8 +602,6 @@ class GameObject : public WorldObject, public GridObject<GameObject>
         uint32 GetGoAnimProgress() const { return GetUInt32Value(GAMEOBJECT_ANIMPROGRESS); }
         void SetGoAnimProgress(uint32 animprogress) { SetUInt32Value(GAMEOBJECT_ANIMPROGRESS, animprogress); }
 
-        void SetPhaseMask(uint32 newPhaseMask, bool update);
-
         void Use(Unit* user);
 
         LootState getLootState() const { return m_lootState; }
@@ -666,16 +663,8 @@ class GameObject : public WorldObject, public GridObject<GameObject>
 
         void TriggeringLinkedGameObject(uint32 trapEntry, Unit* target);
 
-        bool isAlwaysVisibleFor(WorldObject const* seer) const;
-        bool isVisibleForInState(WorldObject const* seer) const;
-
-        uint8 getLevelForTarget(WorldObject const* target) const override
-        {
-            /*if (Unit* owner = GetOwner())
-                return owner->getLevelForTarget(target);*/
-
-            return 1;
-        }
+        bool isVisibleForInState(Player const* u, bool inVisibleList) const;
+        bool canDetectTrap(Player const* u, float distance) const;
 
         GameObject* LookupFishingHoleAround(float range);
 
@@ -697,11 +686,6 @@ class GameObject : public WorldObject, public GridObject<GameObject>
         uint32 m_DBTableGuid;                               // For new or temporary gameobjects is 0 for saved it is lowguid
         GameObjectInfo const* m_goInfo;
         GameObjectData const* m_goData;
-
-        // Used for chest type
-        bool m_isInUse;                                     // only one player at time are allowed to open chest
-        time_t m_reStockTimer;                              // timer to refill the chest
-        time_t m_despawnTimer;                              // timer to despawn the chest if something changed in it
     private:
         void RemoveFromOwner();
         void SwitchDoorOrButton(bool activate, bool alternative = false);

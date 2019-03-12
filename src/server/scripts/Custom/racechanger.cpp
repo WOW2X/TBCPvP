@@ -1,20 +1,26 @@
 // Race Changer NPC
-// Smolderforge 2014-2015
+// Smolderforge 2014-2016
 
 #include "ScriptPCH.h"
 
+#define RACE_CHANGE_TOKEN 385846
+
 bool GossipHello_racechanger(Player *player, Creature *creature)
 {
-    if (player->HasItemCount(385846, 1, false) || player->isGameMaster())
+    if (player->HasItemCount(RACE_CHANGE_TOKEN, 1, false) || player->isGameMaster())
     {
+        // clear flags in case player closed menu previously, and wants different settings this time
+        player->SetFlaggedForRename(false);
+        player->SetFlaggedForGenderSwap(false);
+
         // Check if player is aware and ready to proceed
-        player->ADD_GOSSIP_ITEM_EXTENDED(0, "Yes, I am ready to proceed.", GOSSIP_SENDER_MAIN, 40, "Notice: By continuing your token will be deleted from your bag. If you close the NPC dialogue window your token will not be added back. Only proceed if you are ready. Please be advised your professions will be reset by undergoing a race change.", 0, false);
+        player->ADD_GOSSIP_ITEM_EXTENDED(0, "Yes, I am ready to proceed.", GOSSIP_SENDER_MAIN, 40, "Notice: Your professions will be reset and lost by undergoing a race change.", 0, false);
 
         player->SEND_GOSSIP_MENU(77, creature->GetGUID());
     }
     else if (player->GetTeam() == HORDE && sWorld->getConfig(CONFIG_FREE_ALLY_TRANSFER))
     {
-        player->ADD_GOSSIP_ITEM_EXTENDED(0, "Yes, I am ready to proceed.", GOSSIP_SENDER_MAIN, 101, "Notice: Your professions will be reset by undergoing a race change.", 0, false);
+        player->ADD_GOSSIP_ITEM_EXTENDED(0, "Yes, I am ready to proceed.", GOSSIP_SENDER_MAIN, 101, "Notice: Your professions will be reset and lost by undergoing a race change.", 0, false);
 
         player->SEND_GOSSIP_MENU(85, creature->GetGUID());
     }
@@ -32,7 +38,6 @@ bool GossipSelect_racechanger(Player *player, Creature *creature, uint32 sender,
             // Check if rename is desired from player first
             player->ADD_GOSSIP_ITEM(0, "No, continue with race change.", GOSSIP_SENDER_MAIN, 51);
             player->ADD_GOSSIP_ITEM(0, "Yes, flag me for rename.", GOSSIP_SENDER_MAIN, 50);
-            player->DestroyItemCount(385846, 1, true, false);
 
             player->SEND_GOSSIP_MENU(79, creature->GetGUID());
             // Perform rename if desired, check for gender swap
@@ -41,10 +46,7 @@ bool GossipSelect_racechanger(Player *player, Creature *creature, uint32 sender,
         case 51:
         {
             if (action == 50) // opted for rename
-            {
-                player->SetAtLoginFlag(AT_LOGIN_RENAME);
-                creature->MonsterWhisper("Flagged for rename.", player->GetGUID(), true);
-            }
+                player->SetFlaggedForRename(true);
 
             player->ADD_GOSSIP_ITEM(0, "No, continue with race change.", GOSSIP_SENDER_MAIN, 76);
             player->ADD_GOSSIP_ITEM(0, "Yes, swap my gender.", GOSSIP_SENDER_MAIN, 75);
@@ -58,30 +60,7 @@ bool GossipSelect_racechanger(Player *player, Creature *creature, uint32 sender,
         case 76:
         {
             if (action == 75) // opted for gender swap
-            {
-                uint32 displayId = player->GetNativeDisplayId();
-                uint32 new_displayId = displayId;
-                Gender gender;
-                if (player->getGender() == GENDER_FEMALE)
-                {
-                    new_displayId = player->getRace() == RACE_BLOODELF ? displayId+1 : displayId-1;
-                    gender = GENDER_MALE;
-                }
-                else if (player->getGender() == GENDER_MALE)
-                {
-                    new_displayId = player->getRace() == RACE_BLOODELF ? displayId-1 : displayId+1;
-                    gender = GENDER_FEMALE;
-                }
-
-                // Set gender
-                player->SetByteValue(UNIT_FIELD_BYTES_0, 2, gender);
-                player->SetByteValue(PLAYER_BYTES_3, 0, gender);
-
-                // Change display ID
-                player->SetDisplayId(new_displayId);
-                player->SetNativeDisplayId(new_displayId);
-                creature->MonsterWhisper("Gender swapped!", player->GetGUID(), true);
-            }
+                player->SetFlaggedForGenderSwap(true);
 
             player->ADD_GOSSIP_ITEM(0, "Alliance", GOSSIP_SENDER_MAIN, 100);
             player->ADD_GOSSIP_ITEM(0, "Horde",    GOSSIP_SENDER_MAIN, 200);
@@ -214,6 +193,35 @@ bool GossipSelect_racechanger(Player *player, Creature *creature, uint32 sender,
                 break;
             }
 
+            if (player->GetIsFlaggedForRename())
+                player->SetAtLoginFlag(AT_LOGIN_RENAME);
+
+            if (player->GetIsFlaggedForGenderSwap())
+            {
+                uint32 displayId = player->GetNativeDisplayId();
+                uint32 new_displayId = displayId;
+                Gender gender;
+                if (player->getGender() == GENDER_FEMALE)
+                {
+                    new_displayId = player->getRace() == RACE_BLOODELF ? displayId+1 : displayId-1;
+                    gender = GENDER_MALE;
+                }
+                else if (player->getGender() == GENDER_MALE)
+                {
+                    new_displayId = player->getRace() == RACE_BLOODELF ? displayId-1 : displayId+1;
+                    gender = GENDER_FEMALE;
+                }
+
+                // Set gender
+                player->SetByteValue(UNIT_FIELD_BYTES_0, 2, gender);
+                player->SetByteValue(PLAYER_BYTES_3, 0, gender);
+
+                // Change display ID
+                player->SetDisplayId(new_displayId);
+                player->SetNativeDisplayId(new_displayId);
+            }
+
+            player->DestroyItemCount(RACE_CHANGE_TOKEN, 1, true, false);
             std::string IP_str = player->GetSession()->GetRemoteAddress();
             sLog->outChar("Account: %d (IP: %s) Race Change on Character:[%s] (guid: %u) from Race ID %u to %u", player->GetSession()->GetAccountId(), IP_str.c_str(), player->GetName(), player->GetGUIDLow(), action, player->getRace());
             player->ChangeRace(player, action);

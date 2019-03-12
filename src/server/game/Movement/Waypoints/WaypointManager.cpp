@@ -26,7 +26,7 @@
 
 void WaypointStore::Free()
 {
-    for (std::unordered_map<uint32, WaypointPath*>::const_iterator itr = waypoint_map.begin(); itr != waypoint_map.end(); ++itr)
+    for (UNORDERED_MAP<uint32, WaypointPath*>::const_iterator itr = waypoint_map.begin(); itr != waypoint_map.end(); ++itr)
     {
         for (WaypointPath::const_iterator it = itr->second->begin(); it != itr->second->end(); ++it)
             delete *it;
@@ -69,6 +69,13 @@ void WaypointStore::Load()
 
         if (last_id != id)
             path_data = new WaypointPath;
+
+        if (!path_data)
+        {
+            delete wp;
+            last_id = id;
+            continue;
+        }
 
         float x, y, z;
         x = fields[2].GetFloat();

@@ -145,6 +145,9 @@ void WorldSession::HandleAutoEquipItemOpcode(WorldPacket & recv_data)
     //sLog->outDebug("WORLD: CMSG_AUTOEQUIP_ITEM");
     uint8 srcbag, srcslot;
 
+    // Used to prevent gray Equips (see at the end of this function)
+    static Item* previousEquip = NULL;
+
     recv_data >> srcbag >> srcslot;
     //sLog->outDebug("STORAGE: receive srcbag = %u, srcslot = %u", srcbag, srcslot);
 
@@ -230,8 +233,28 @@ void WorldSession::HandleAutoEquipItemOpcode(WorldPacket & recv_data)
         else if (_player->IsEquipmentPos(src))
             _player->EquipItem(eSrc, pDstItem, true);
 
+        Item *offItem = _player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
         _player->AutoUnequipOffhandIfNeed();
+        Item *temp = _player->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_OFFHAND);
+
+        // Additional code to prevent Gray Icons. A.K.A "Cast sequence bag bug" (client side).
+        // If player had an offhand, and it was removed due to AutoUnequipOffhandIfNeed()
+        // and previous equip was itself
+        if (offItem && !temp && previousEquip == offItem)
+        {
+            //Swap with previous main hand in the bag
+            uint8 mainItem_slot = pDstItem->GetPos();
+            uint8 offItem_slot = offItem->GetPos();
+
+            uint16 src = ((INVENTORY_SLOT_BAG_0 << 8) | offItem_slot);
+            uint16 dst = ((INVENTORY_SLOT_BAG_0 << 8) | mainItem_slot);
+
+            _player->SwapItem(src, dst);
+        }
     }
+
+    // Save as previous successful equip
+    previousEquip = pSrcItem;
 }
 
 void WorldSession::HandleDestroyItemOpcode(WorldPacket & recv_data)

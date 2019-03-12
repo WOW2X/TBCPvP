@@ -21,8 +21,10 @@
 #define DATABASE_H
 
 #include "Threading.h"
+#include "UnorderedMap.h"
 #include "SqlDelayThread.h"
 
+#include <ace/Thread_Mutex.h>
 #include <ace/Guard_T.h>
 
 #ifdef _WIN32
@@ -35,8 +37,8 @@ class SqlTransaction;
 class SqlResultQueue;
 class SqlQueryHolder;
 
-typedef std::unordered_map<ACE_Based::Thread*, SqlTransaction*> TransactionQueues;
-typedef std::unordered_map<ACE_Based::Thread*, SqlResultQueue*> QueryQueues;
+typedef UNORDERED_MAP<ACE_Based::Thread*, SqlTransaction*> TransactionQueues;
+typedef UNORDERED_MAP<ACE_Based::Thread*, SqlResultQueue*> QueryQueues;
 
 #define MAX_QUERY_LEN   32*1024
 

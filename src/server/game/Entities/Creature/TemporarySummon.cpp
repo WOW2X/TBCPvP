@@ -298,7 +298,6 @@ bool Minion::IsGuardianPet() const
 Guardian::Guardian(SummonPropertiesEntry const *properties, Unit *owner) : Minion(properties, owner)
 , m_bonusdamage(0)
 {
-    memset(m_statFromOwner, 0, sizeof(float)*MAX_STATS);
     m_summonMask |= SUMMON_MASK_GUARDIAN;
     if (properties && properties->Type == SUMMON_TYPE_PET)
     {
@@ -354,7 +353,10 @@ void Puppet::Update(uint32 time)
     Minion::Update(time);
     //check if caster is channelling?
     if (IsInWorld() && !isAlive())
+    {
         UnSummon();
+        m_owner->InterruptNonMeleeSpells(true, GetUInt32Value(UNIT_CREATED_BY_SPELL), false);
+    }
 }
 
 void Puppet::RemoveFromWorld()

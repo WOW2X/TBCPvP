@@ -25,40 +25,14 @@
 
 #define MAX_SPELL_ID    60000
 
+const float STRICT_RANGED_RANGE_MOD = 1.25f;
+const float UNSTRICT_RANGED_RANGE_MOD = 6.25f;
+const float UNSTRICT_MELEE_RANGED_MOD = 5.0f;
+
 class Unit;
 class Player;
 class GameObject;
 class Aura;
-
-enum SpellCastTargetFlags
-{
-    /*TARGET_FLAG_NONE             = 0x0000,
-    TARGET_FLAG_SWIMMER          = 0x0002,
-    TARGET_FLAG_ITEM             = 0x0010,
-    TARGET_FLAG_SOURCE_AREA      = 0x0020,
-    TARGET_FLAG_DEST_AREA        = 0x0040,
-    TARGET_FLAG_UNKNOWN          = 0x0080,
-    TARGET_FLAG_SELF             = 0x0100,
-    TARGET_FLAG_PVP_CORPSE       = 0x0200,
-    TARGET_FLAG_MASS_SPIRIT_HEAL = 0x0400,
-    TARGET_FLAG_BEAST_CORPSE     = 0x0402,
-    TARGET_FLAG_OBJECT           = 0x4000,
-    TARGET_FLAG_RESURRECTABLE    = 0x8000*/
-
-    TARGET_FLAG_SELF            = 0x00000000,
-    TARGET_FLAG_UNIT            = 0x00000002,               // pguid
-    TARGET_FLAG_ITEM            = 0x00000010,               // pguid
-    TARGET_FLAG_SOURCE_LOCATION = 0x00000020,               // 3 float
-    TARGET_FLAG_DEST_LOCATION   = 0x00000040,               // 3 float
-    TARGET_FLAG_OBJECT_UNK      = 0x00000080,               // ?
-    TARGET_FLAG_PVP_CORPSE      = 0x00000200,               // pguid
-    TARGET_FLAG_OBJECT          = 0x00000800,               // pguid
-    TARGET_FLAG_TRADE_ITEM      = 0x00001000,               // pguid
-    TARGET_FLAG_STRING          = 0x00002000,               // string
-    TARGET_FLAG_UNK1            = 0x00004000,               // ?
-    TARGET_FLAG_CORPSE          = 0x00008000,               // pguid
-    TARGET_FLAG_UNK2            = 0x00010000                // pguid
-};
 
 enum SpellCastFlags
 {
@@ -168,8 +142,8 @@ class SpellCastTargets
         }
 
         bool IsEmpty() const { return m_GOTargetGUID.IsEmpty() && m_unitTargetGUID.IsEmpty() && m_itemTarget==NULL && m_CorpseTargetGUID.IsEmpty(); }
-        bool HasSrc() const { return m_targetMask & TARGET_FLAG_SOURCE_LOCATION; }
-        bool HasDst() const { return m_targetMask & TARGET_FLAG_DEST_LOCATION; }
+        bool HasSrc() const { return (m_targetMask & TARGET_FLAG_SOURCE_LOCATION) != 0; }
+        bool HasDst() const { return (m_targetMask & TARGET_FLAG_DEST_LOCATION) != 0; }
 
         void Update(Unit* caster);
 
@@ -255,7 +229,7 @@ class Spell
         void EffectUnused(uint32);
         void EffectDistract(uint32 i);
         void EffectPull(uint32 i);
-        void EffectSchoolDamage(uint32 i);
+        void EffectSchoolDMG(uint32 i);
         void EffectEnvironmentalDMG(uint32 i);
         void EffectInstaKill(uint32 i);
         void EffectDummy(uint32 i);
@@ -374,9 +348,11 @@ class Spell
         void _handle_finish_phase();
 
         uint8 CheckItems();
-        uint8 CheckRange(bool strict, bool checkFacing = true, float modifier = 0.0f);
+        uint8 CheckRange(bool strict, bool initialCheck = true);
         uint8 CheckPower();
         uint8 CheckCasterAuras() const;
+
+        int32 CalculateDamage(uint8 i, Unit* target) { return m_caster->CalculateSpellDamage(m_spellInfo, i, m_currentBasePoints[i], target); }
 
         bool HaveTargetsForEffect(uint8 effect) const;
         void Delayed();
@@ -391,8 +367,9 @@ class Spell
         void FillTargetMap();
 
         void SetTargetMap(uint32 i, uint32 cur);
-        void SelectExplicitTargets();
 
+        Unit* SelectMagnetTarget();
+        void HandleHitTriggerAura();
         bool CheckTarget(Unit* target, uint32 eff);
 
         void CheckSrc() { if (!m_targets.HasSrc()) m_targets.setSrc(m_caster); }
@@ -433,9 +410,7 @@ class Spell
             return  m_spellInfo->Attributes & SPELL_ATTR_RANGED;
         }
         bool IsChannelActive() const { return m_caster->GetUInt32Value(UNIT_CHANNEL_SPELL) != 0; }
-        bool IsMeleeAttackResetSpell() const { return !m_IsTriggeredSpell && (m_spellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_AUTOATTACK);  }
-        bool IsRangedAttackResetSpell() const { return !m_IsTriggeredSpell && /*IsRangedSpell() &&*/ !(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_NOT_RESET_AUTOSHOT); }
-
+        bool IsAutoActionResetSpell() const { return !m_IsTriggeredSpell && (m_spellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_AUTOATTACK); }
         bool IsDeletable() const { return !m_referencedFromCurrentSpell && !m_executedCurrently; }
         void SetReferencedFromCurrent(bool yes) { m_referencedFromCurrentSpell = yes; }
         bool IsInterruptable() const { return !m_executedCurrently; }
@@ -468,7 +443,6 @@ class Spell
     protected:
 
         void SendLoot(uint64 guid, LootType loottype);
-        void GetMinMaxRange(bool strict, float& minRange, float& maxRange);
 
         Unit* const m_caster;
 
@@ -534,16 +508,19 @@ class Spell
         // Spell target subsystem
         //*****************************************
         // Targets store structures and data
+        uint32 m_countOfHit;
+        uint32 m_countOfMiss;
         struct TargetInfo
         {
             uint64 targetGUID;
             uint64 timeDelay;
-            uint32 HitInfo;
-            uint32 damage;
-            SpellMissInfo missCondition: 8;
-            SpellMissInfo reflectResult: 8;
-            uint8  effectMask: 8;
-            bool   processed: 1;
+            SpellMissInfo missCondition:8;
+            SpellMissInfo reflectResult:8;
+            uint8  effectMask:8;
+            bool   processed:1;
+            bool   deleted:1;
+            int32  damage;
+            bool   crit;
         };
         std::list<TargetInfo> m_UniqueTargetInfo;
         uint8 m_needAliveTargetMask;                        // Mask req. alive targets
@@ -582,6 +559,11 @@ class Spell
         bool IsValidSingleTargetEffect(Unit const* target, Targets type) const;
         bool IsValidSingleTargetSpell(Unit const* target) const;
         bool CanTargetNotInLOS(SpellEntry const *spellInfo, uint32 eff);
+        void CalculateDamageDoneForAllTargets();
+        int32 CalculateDamageDone(Unit *unit, const uint32 effectMask, float *multiplier);
+        void SpellDamageSchoolDmg(uint32 i);
+        void SpellDamageWeaponDmg(uint32 i);
+        void SpellDamageHeal(uint32 i);
 
         void GetTotemPosition(uint32 i, Position &pos);
         void GetSummonPosition(uint32 i, Position &pos, float radius = 0.0f, uint32 count = 0);
@@ -647,25 +629,19 @@ namespace Trinity
 
                 switch (i_TargetType)
                 {
-                    case SPELL_TARGETS_ALLY:
-                        if (!itr->getSource()->isAttackableByAOE() || !i_caster->IsFriendlyTo(itr->getSource()))
-                            continue;
+                case SPELL_TARGETS_ALLY:
+                    if (!i_caster->IsFriendlyTo(itr->getSource()))
+                        continue;
+                    if (itr->getSource()->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE))
+                        continue;
                         break;
                     case SPELL_TARGETS_ENEMY:
                     {
                         if (itr->getSource()->GetTypeId() == TYPEID_UNIT && ((Creature*)itr->getSource())->isTotem())
                             continue;
 
-                        if (i_caster->GetCreatureType() == CREATURE_TYPE_TOTEM)
-                        {
-                            if (!itr->getSource()->isAttackableByAOE(i_pos->GetPositionX(), i_pos->GetPositionY(), i_pos->GetPositionZ(), true))
-                                continue;
-                        }
-                        else
-                        {
-                            if (!itr->getSource()->isAttackableByAOE())
-                                continue;
-                        }
+                        if (!itr->getSource()->isAttackableByAOE(i_pos->GetPositionX(), i_pos->GetPositionY(), i_pos->GetPositionZ(), true))
+                            continue;
 
                         Unit* check = i_caster->GetCharmerOrOwnerOrSelf();
 

@@ -123,6 +123,7 @@ struct boss_alarAI : public ScriptedAI
         me->ApplySpellImmune(0, IMMUNITY_SCHOOL, SPELL_SCHOOL_MASK_FIRE, true);
         me->SetUnitMovementFlags(MOVEFLAG_LEVITATING);
         me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
         me->setActive(false);
     }
 
@@ -379,7 +380,7 @@ struct boss_alarAI : public ScriptedAI
                     if (Summoned)
                     {
                         Summoned->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                        Summoned->SetFloatValue(OBJECT_FIELD_SCALE_X, Summoned->GetFloatValue(OBJECT_FIELD_SCALE_X)*2.5f);
+                        Summoned->SetObjectScale(Summoned->GetObjectScale() * 2.5f);
                         Summoned->SetDisplayId(11686);
                         Summoned->setFaction(me->getFaction());
                         Summoned->SetLevel(me->getLevel());

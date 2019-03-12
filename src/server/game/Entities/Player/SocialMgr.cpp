@@ -27,7 +27,6 @@
 #include "ObjectMgr.h"
 #include "World.h"
 #include "Util.h"
-#include "MapManager.h"
 
 PlayerSocial::PlayerSocial()
 {
@@ -215,14 +214,13 @@ void SocialMgr::GetFriendInfo(Player* player, uint32 friendGUID, FriendInfo &fri
         if (pFriend->isDND())
             friendInfo.Status = FRIEND_STATUS_DND;
 
-        friendInfo.Area = 0;
-        if (fakeArenaMembersInWhoList && pFriend->InArena())
+        if (fakeArenaMembersInWhoList && pFriend->InArena() && player->InArena() && !player->isGameMaster()) // always display true location to GMs
         {
             friendInfo.Area = sMapMgr->GetZoneId(
-                pFriend->GetBattleGroundEntryPoint().GetMapId(),
-                pFriend->GetBattleGroundEntryPoint().GetPositionX(),
-                pFriend->GetBattleGroundEntryPoint().GetPositionY(),
-                pFriend->GetBattleGroundEntryPoint().GetPositionZ());
+            pFriend->GetBattleGroundEntryPoint().GetMapId(),
+            pFriend->GetBattleGroundEntryPoint().GetPositionX(),
+            pFriend->GetBattleGroundEntryPoint().GetPositionY(),
+            pFriend->GetBattleGroundEntryPoint().GetPositionZ());
         }
         else
             friendInfo.Area = pFriend->GetZoneId();

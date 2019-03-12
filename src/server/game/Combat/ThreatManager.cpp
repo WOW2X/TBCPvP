@@ -292,13 +292,15 @@ HostileReference* ThreatContainer::selectNextVictim(Creature* pAttacker, Hostile
     {
         currentRef = (*iter);
 
+        if (!currentRef)
+            continue;
+
         Unit* target = currentRef->getTarget();
         ASSERT(target);                                     // if the ref has status online the target must be there !
 
         // some units are preferred in comparison to others
         if (iter != lastRef && (target->IsImmunedToDamage(pAttacker->GetMeleeDamageSchoolMask(), false) ||
-                target->hasUnitState(UNIT_STAT_CONFUSED)
-))
+                target->hasUnitState(UNIT_STAT_CONFUSED)))
         {
             // current victim is a second choice target, so don't compare threat with it below
             if (currentRef == pCurrentVictim)
@@ -377,6 +379,22 @@ void ThreatManager::addThreat(Unit* pVictim, float pThreat, SpellSchoolMask scho
         return;
 
     ASSERT(getOwner()->GetTypeId() == TYPEID_UNIT);
+
+    // missing threat calculations due to unknown bug with some spells.
+    // this is done before calcThreat multipliers.
+    // for Thunder Clap
+    if (pThreatSpell && pVictim->getClass() == CLASS_WARRIOR && pThreatSpell->SpellFamilyFlags == 0x80)
+    {
+        SpellThreatEntry const *threatSpell = sSpellThreatStore.LookupEntry<SpellThreatEntry>(pThreatSpell->Id);
+
+        if (threatSpell)
+            pThreat += threatSpell->threat;
+    }
+    // for Holy Shield
+    else if (pThreatSpell && pVictim->getClass() == CLASS_PALADIN && pThreatSpell->SpellFamilyFlags == 0x4000000000)
+    {
+        pThreat *= 1.35f; // Inc. threat 35% of damage dealt.
+    }
 
     float threat = ThreatCalcHelper::calcThreat(pVictim, iOwner, pThreat, schoolMask, pThreatSpell);
 

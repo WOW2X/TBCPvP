@@ -80,4 +80,7 @@ typedef uint16      WORD;
 typedef uint32      DWORD;
 #endif //COMPILER
 
+typedef uint64 OBJECT_HANDLE;
+
 #endif //TRINITY_DEFINE_H
+

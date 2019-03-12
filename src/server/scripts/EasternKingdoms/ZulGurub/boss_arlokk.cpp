@@ -97,7 +97,7 @@ struct boss_arlokkAI : public ScriptedAI
 
         me->SetDisplayId(MODEL_ID_NORMAL);
         me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-        me->SetFloatValue(OBJECT_FIELD_SCALE_X, 1.0f);
+        me->SetObjectScale(1.0f);
     }
 
     void EnterCombat(Unit* /*pWho*/)
@@ -120,7 +120,7 @@ struct boss_arlokkAI : public ScriptedAI
 
         me->SetDisplayId(MODEL_ID_NORMAL);
         me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-        me->SetFloatValue(OBJECT_FIELD_SCALE_X, 1.0f);
+        me->SetObjectScale(1.0f);
 
         if (instance)
             instance->SetData(TYPE_ARLOKK, DONE);
@@ -272,7 +272,7 @@ struct boss_arlokkAI : public ScriptedAI
 
                 m_bIsPhaseTwo = true;
                 m_bIsVanished = false;
-                me->SetFloatValue(OBJECT_FIELD_SCALE_X, 1.7f);
+                me->SetObjectScale(1.7f);
             }
             else
                 m_uiVisible_Timer -= uiDiff;
@@ -352,4 +352,3 @@ void AddSC_boss_arlokk()
     newscript->GetAI = &GetAI_mob_prowler;
     newscript->RegisterSelf();
 }
-

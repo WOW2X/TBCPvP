@@ -169,6 +169,9 @@ struct boss_aranAI : public ScriptedAI
 
         LastSuperSpell = rand() % 3;
 
+        FlameWreathTimer = 0;
+        FlameWreathCheckTime = 0;
+
         CurrentNormalSpell = 0;
         ArcaneCooldown = 0;
         FireCooldown = 0;
@@ -191,6 +194,12 @@ struct boss_aranAI : public ScriptedAI
 
     uint8 LastSuperSpell;
 
+    uint32 FlameWreathTimer;
+    uint32 FlameWreathCheckTime;
+    ObjectGuid FlameWreathTarget[3];
+    float FWTargPosX[3];
+    float FWTargPosY[3];
+
     uint32 CurrentNormalSpell;
     uint32 ArcaneCooldown;
     uint32 FireCooldown;
@@ -206,6 +215,8 @@ struct boss_aranAI : public ScriptedAI
 
     void Reset()
     {
+        Initialize();
+
         if (instance)
         {
             // Not in progress
@@ -256,7 +267,42 @@ struct boss_aranAI : public ScriptedAI
         if (instance)
         {
             instance->SetData(TYPE_ARAN, IN_PROGRESS);
-            instance->HandleGameObject(instance->GetData64(DATA_GO_LIBRARY_DOOR), false);
+            //instance->HandleGameObject(instance->GetData64(DATA_GO_LIBRARY_DOOR), false);
+        }
+    }
+
+    void FlameWreathEffect()
+    {
+        std::vector<Unit*> targets;
+        std::list<HostileReference *> t_list = me->getThreatManager().getThreatList();
+
+        if (t_list.empty())
+            return;
+
+        //store the threat list in a different container
+        for (std::list<HostileReference *>::const_iterator itr = t_list.begin(); itr != t_list.end(); ++itr)
+        {
+            Unit* target = Unit::GetUnit(*me, (*itr)->getUnitGuid());
+            //only on alive players
+            if (target && target->isAlive() && target->GetTypeId() == TYPEID_PLAYER)
+                targets.push_back(target);
+        }
+
+        //cut down to size if we have more than 3 targets
+        while (targets.size() > 3)
+            targets.erase(targets.begin() + rand32() % targets.size());
+
+        uint32 i = 0;
+        for (std::vector<Unit*>::const_iterator itr = targets.begin(); itr != targets.end(); ++itr)
+        {
+            if (*itr)
+            {
+                FlameWreathTarget[i] = (*itr)->GetGUID();
+                FWTargPosX[i] = (*itr)->GetPositionX();
+                FWTargPosY[i] = (*itr)->GetPositionY();
+                DoCast((*itr), SPELL_FLAME_WREATH, true);
+                ++i;
+            }
         }
     }
 
@@ -268,7 +314,7 @@ struct boss_aranAI : public ScriptedAI
         // Check_Timer
         if (CheckTimer < diff)
         {
-            if (me->IsWithinDist3d(&pos, 35.0f))
+            if (!me->IsWithinDist3d(&pos, 35.0f))
                 EnterEvadeMode();
             else
                 DoZoneInCombat();
@@ -282,7 +328,9 @@ struct boss_aranAI : public ScriptedAI
         {
             if (CloseDoorTimer <= diff)
             {
-                instance->HandleGameObject(instance->GetData64(DATA_GO_LIBRARY_DOOR), false);
+                if (instance)
+                    instance->HandleGameObject(instance->GetData64(DATA_GO_LIBRARY_DOOR), false);
+
                 CloseDoorTimer = 0;
             }
             else CloseDoorTimer -= diff;
@@ -362,7 +410,7 @@ struct boss_aranAI : public ScriptedAI
         if (Drinking)
             return;
 
-        if (Drinking = DRINKING_NO_DRINKING)
+        if (Drinking == DRINKING_NO_DRINKING)
         {
             // Normal casts
             if (NormalCastTimer <= diff)
@@ -431,26 +479,42 @@ struct boss_aranAI : public ScriptedAI
                 {
                     case SUPER_AE:
                         DoScriptText(RAND(SAY_EXPLOSION1, SAY_EXPLOSION2), me);
+                        me->InterruptNonMeleeSpells(false); // cancel current spells so AE will cast
+                        NormalCastTimer = 15000;
 
-                        DoCast(me, SPELL_TELEPORT_MIDDLE, true);
+                        //DoCast(me, SPELL_TELEPORT_MIDDLE, true); // not working
+                        DoTeleportTo(-11164.983f, -1912.04f, 232.0f);
                         DoCast(me, SPELL_MAGNETIC_PULL, true);
                         DoCast(me, SPELL_MASSSLOW, true);
                         DoCast(me, SPELL_AEXPLOSION, false);
-                        DrinkingDelay = 15000;
                         break;
 
                     case SUPER_FLAME:
                         DoScriptText(RAND(SAY_FLAMEWREATH1, SAY_FLAMEWREATH2), me);
-                        DrinkingDelay = 25000;
+                        FlameWreathTimer = 20000;
+                        FlameWreathCheckTime = 500;
+
+                        FlameWreathTarget[0].Clear();
+                        FlameWreathTarget[1].Clear();
+                        FlameWreathTarget[2].Clear();
+
+                        FlameWreathEffect();
                         break;
 
                     case SUPER_BLIZZARD:
                         DoScriptText(RAND(SAY_BLIZZARD1, SAY_BLIZZARD2), me);
-                        DrinkingDelay = 30000;
+
+                        if (Creature* pSpawn = me->SummonCreature(CREATURE_ARAN_BLIZZARD, 0.0f, 0.0f, 0.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 25000))
+                        {
+                            pSpawn->setFaction(me->getFaction());
+                            pSpawn->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                            pSpawn->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                            pSpawn->CastSpell(pSpawn, SPELL_CIRCULAR_BLIZZARD, false);
+                        }
                         break;
                 }
 
-                SuperCastTimer = urand(35000, 40000);
+                SuperCastTimer = urand(30000, 35000);
             }
             else SuperCastTimer -= diff;
 
@@ -458,7 +522,8 @@ struct boss_aranAI : public ScriptedAI
             {
                 ElementalsSpawned = true;
 
-                DoCast(me, SPELL_TELEPORT_MIDDLE, true);
+                DoTeleportTo(-11164.983f, -1912.04f, 232.0f);
+                //DoCast(me, SPELL_TELEPORT_MIDDLE, true); // not working
                 DoCast(me, SPELL_MAGNETIC_PULL, true);
                 DoCast(me, SPELL_ELEMENTAL1, true);
                 DoCast(me, SPELL_ELEMENTAL2, true);
@@ -468,7 +533,7 @@ struct boss_aranAI : public ScriptedAI
                 DoScriptText(SAY_ELEMENTALS, me);
             }
         }
-        
+
         if (BerserkTimer <= diff)
         {
             for (uint32 i = 0; i < 8; ++i)
@@ -485,6 +550,33 @@ struct boss_aranAI : public ScriptedAI
             BerserkTimer = 60000;
         }
         else BerserkTimer -= diff;
+
+        //Flame Wreath check
+        if (FlameWreathTimer)
+        {
+            if (FlameWreathTimer >= diff)
+                FlameWreathTimer -= diff;
+            else FlameWreathTimer = 0;
+
+            if (FlameWreathCheckTime <= diff)
+            {
+                for (uint8 i = 0; i < 3; ++i)
+                {
+                    if (FlameWreathTarget[i].IsEmpty())
+                        continue;
+
+                    Unit* unit = Unit::GetUnit(*me, FlameWreathTarget[i].GetRawValue());
+                    if (unit && !unit->IsWithinDist2d(FWTargPosX[i], FWTargPosY[i], 3))
+                    {
+                        unit->CastSpell(unit, 20476, true, 0, 0, me->GetGUID());
+                        unit->CastSpell(unit, 11027, true);
+                        FlameWreathTarget[i].Clear();
+                    }
+                }
+                FlameWreathCheckTime = 500;
+            }
+            else FlameWreathCheckTime -= diff;
+        }
 
         if (ArcaneCooldown && FireCooldown && FrostCooldown)
             DoMeleeAttackIfReady();
@@ -727,7 +819,7 @@ CreatureAI* GetAI_boss_aran(Creature* creature)
 
 CreatureAI* GetAI_shadow_of_aran(Creature* creature)
 {
-    return new shadow_of_aranAI (creature);
+    return new shadow_of_aranAI(creature);
 }
 
 CreatureAI* GetAI_water_elemental(Creature* creature)
@@ -753,4 +845,3 @@ void AddSC_boss_shade_of_aran()
     newscript->GetAI = &GetAI_water_elemental;
     newscript->RegisterSelf();
 }
-

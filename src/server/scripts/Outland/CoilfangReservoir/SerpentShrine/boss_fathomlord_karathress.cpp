@@ -643,7 +643,7 @@ struct boss_fathomguard_caribdisAI : public ScriptedAI
             Creature *Cyclone = me->SummonCreature(CREATURE_CYCLONE, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), float(rand()%5), TEMPSUMMON_TIMED_DESPAWN, 15000);
             if (Cyclone)
             {
-                CAST_CRE(Cyclone)->SetFloatValue(OBJECT_FIELD_SCALE_X, 3.0f);
+                CAST_CRE(Cyclone)->SetObjectScale(3.0f);
                 Cyclone->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
                 Cyclone->setFaction(me->getFaction());
                 Cyclone->CastSpell(Cyclone, SPELL_CYCLONE_CYCLONE, true);
@@ -743,4 +743,3 @@ void AddSC_boss_fathomlord_karathress()
     newscript->GetAI = &GetAI_boss_fathomguard_caribdis;
     newscript->RegisterSelf();
 }
-

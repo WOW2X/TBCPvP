@@ -21,9 +21,13 @@
 #ifndef TRINITY_OBJECTREGISTRY_H
 #define TRINITY_OBJECTREGISTRY_H
 
-#include "Common.h"
 #include "Define.h"
+#include "UnorderedMap.h"
 #include "ace/Singleton.h"
+
+#include <string>
+#include <vector>
+#include <map>
 
 // ObjectRegistry holds all registry item of the same type
 template<class T, class Key = std::string>

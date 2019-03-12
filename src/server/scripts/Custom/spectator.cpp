@@ -47,7 +47,7 @@ bool GossipHello_spectator(Player *player, Creature *_Creature)
     }
 
     player->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT,  "2v2 Rated"              , ARENA_TYPE_2v2, 0); // start listing at arena 0
-    //player->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT,  "3v3 Rated"              , ARENA_TYPE_3v3, 0);
+    player->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT,  "3v3 Rated"              , ARENA_TYPE_3v3, 0);
     player->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT,  "3v3 Solo Queue Rated"   , ARENA_TYPE_SOLO_3v3, 0);
     player->PlayerTalkClass->SendGossipMenu(66, _Creature->GetGUID());
 
@@ -77,7 +77,7 @@ void SendSubMenu_spectator(Player *player, Creature *_Creature, uint32 arenaType
             if (!greenTeam || !goldTeam)
                 continue;
 
-            if (arenaType == 2)
+            if (arenaType == ARENA_TYPE_2v2)
             {
                 uint8 first = 0;
                 uint8 second = 0;
@@ -129,6 +129,80 @@ void SendSubMenu_spectator(Player *player, Creature *_Creature, uint32 arenaType
 
                 player->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, firstName + " " + firstClass + " " + secondName + " " + secondClass + " (" + StrToInt(goldTeam->GetRating()) + ") VS " +
                     firstName2 + " " + firstClass2 + " " + secondName2 + " " + secondClass2 + " (" + StrToInt(greenTeam->GetRating()) + ")",
+                    GOSSIP_SENDER, itr->first);
+            }
+            else if (arenaType == ARENA_TYPE_3v3)
+            {
+                uint8 first = 0;
+                uint8 second = 0;
+                uint8 third = 0;
+
+                uint8 first2 = 0;
+                uint8 second2 = 0;
+                uint8 third2 = 0;
+                std::string firstName = "?";
+                std::string secondName = "?";
+                std::string thirdName = "?";
+                std::string firstName2 = "?";
+                std::string secondName2 = "?";
+                std::string thirdName2 = "?";
+                std::string firstClass;
+                std::string secondClass;
+                std::string thirdClass;
+                std::string firstClass2;
+                std::string secondClass2;
+                std::string thirdClass2;
+                for (BattleGround::BattleGroundPlayerMap::const_iterator itr2 = bg->GetPlayers().begin(); itr2 != bg->GetPlayers().end(); ++itr2)
+                {
+                    if (Player *plr = sObjectMgr->GetPlayer(itr2->first))
+                    {
+                        if (plr->GetArenaTeamId(1) == goldTeam->GetId())
+                        {
+                            if (first == 0)
+                            {
+                                first = plr->getClass();
+                                firstName = plr->GetName();
+                                firstClass = GetClassName(first);
+                            }
+                            else if (second == 0)
+                            {
+                                second = plr->getClass();
+                                secondName = plr->GetName();
+                                secondClass = GetClassName(second);
+                            }
+                            else if (third == 0)
+                            {
+                                third = plr->getClass();
+                                thirdName = plr->GetName();
+                                thirdClass = GetClassName(third);
+                            }
+                        }
+                        else if (plr->GetArenaTeamId(1) == greenTeam->GetId())
+                        {
+                            if (first2 == 0)
+                            {
+                                first2 = plr->getClass();
+                                firstName2 = plr->GetName();
+                                firstClass2 = GetClassName(first2);
+                            }
+                            else if (second2 == 0)
+                            {
+                                second2 = plr->getClass();
+                                secondName2 = plr->GetName();
+                                secondClass2 = GetClassName(second2);
+                            }
+                            else if (third2 == 0)
+                            {
+                                third2 = plr->getClass();
+                                thirdName2 = plr->GetName();
+                                thirdClass2 = GetClassName(third2);
+                            }
+                        }
+                    }
+                }
+
+                player->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, firstName + " " + firstClass + " " + secondName + " " + secondClass + " " + thirdName + " " + thirdClass + " (" + StrToInt(goldTeam->GetRating()) + ") VS " +
+                    firstName2 + " " + firstClass2 + " " + secondName2 + " " + secondClass2 + " " + thirdName2 + " " + thirdClass2 +"(" + StrToInt(greenTeam->GetRating()) + ")",
                     GOSSIP_SENDER, itr->first);
             }
             else if (arenaType == ARENA_TYPE_SOLO_3v3)
@@ -234,13 +308,6 @@ void SendMenu_spectator(Player *player, Creature *_Creature, uint32 action)
         player->SetBattleGroundId(action);
         player->SetBattleGroundEntryPoint();
         player->setSpectator(true);
-        player->SetSpeed(MOVE_RUN, 3, true);
-        player->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SILENCED);
-        player->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PACIFIED);
-        player->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-        player->RemovePet(NULL, PET_SAVE_NOT_IN_SLOT, true);
-        if (player->GetGroup())
-            player->RemoveFromGroup();
         bg->HandlePlayerUnderMap(player); // very cheap but awesome working way to teleport the player to the middle of the bg
 
         WorldPacket data;
@@ -258,7 +325,7 @@ bool GossipSelect_spectator(Player *player, Creature *_Creature, uint32 sender, 
     switch (sender)
     {
         case ARENA_TYPE_2v2:            SendSubMenu_spectator(player, _Creature, sender, action); break;
-        //case ARENA_TYPE_3v3:            SendSubMenu_spectator(player, _Creature, sender, action); break;
+        case ARENA_TYPE_3v3:            SendSubMenu_spectator(player, _Creature, sender, action); break;
         case ARENA_TYPE_SOLO_3v3:       SendSubMenu_spectator(player, _Creature, sender, action); break;
         case GOSSIP_SENDER:             SendMenu_spectator(player, _Creature, action); break;
     }

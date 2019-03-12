@@ -118,11 +118,11 @@ VisibleChangesNotifier::Visit(DynamicObjectMapType &m)
 
 inline void CreatureUnitRelocationWorker(Creature* c, Unit* u)
 {
-    if (!u->isAlive() || !c->isAlive() || c == u || u->isInFlight())
+    if (c == u || !u->isAlive() || !c->isAlive() || u->isInFlight())
         return;
 
     if (c->HasReactState(REACT_AGGRESSIVE) && !c->hasUnitState(UNIT_STAT_SIGHTLESS))
-        if (c->IsAIEnabled && c->canSeeOrDetect(u, false, true))
+        if (c->IsAIEnabled && c->_IsWithinDist(u, c->m_SightDistance, true))
             c->AI()->MoveInLineOfSight_Safe(u);
 }
 
@@ -181,6 +181,7 @@ void CreatureRelocationNotifier::Visit(CreatureMapType &m)
     for (CreatureMapType::iterator iter=m.begin(); iter != m.end(); ++iter)
     {
         Creature* c = iter->getSource();
+
         CreatureUnitRelocationWorker(&i_creature, c);
 
         if (!c->isNeedNotify(NOTIFY_VISIBILITY_CHANGED))
@@ -302,7 +303,6 @@ void DynamicObjectUpdater::VisitHelper(Unit* target)
     // Check target immune to spell or aura
     if (target->IsImmunedToSpell(spellInfo) || target->IsImmunedToSpellEffect(spellInfo, eff_index))
         return;
-
     // Apply PersistentAreaAura on target
     PersistentAreaAura* Aur = new PersistentAreaAura(spellInfo, eff_index, NULL, target, i_dynobject.GetCaster());
     target->AddAura(Aur);
@@ -328,10 +328,7 @@ MessageDistDeliverer::Visit(PlayerMapType &m)
     {
         Player *target = iter->getSource();
 
-        if (!target->InSamePhase(i_phaseMask))
-            continue;
-
-        if (target->GetExactDist2dSq(i_source) > i_distSq)
+        if (target->GetExactDistSq(i_source) > i_distSq)
             continue;
 
         // Send packet to all who are sharing the player's vision
@@ -353,10 +350,7 @@ MessageDistDeliverer::Visit(CreatureMapType &m)
 {
     for (CreatureMapType::iterator iter = m.begin(); iter != m.end(); ++iter)
     {
-        if (!iter->getSource()->InSamePhase(i_phaseMask))
-            continue;
-
-        if (iter->getSource()->GetExactDist2dSq(i_source) > i_distSq)
+        if (iter->getSource()->GetExactDistSq(i_source) > i_distSq)
             continue;
 
         // Send packet to all who are sharing the creature's vision
@@ -375,10 +369,7 @@ MessageDistDeliverer::Visit(DynamicObjectMapType &m)
 {
     for (DynamicObjectMapType::iterator iter = m.begin(); iter != m.end(); ++iter)
     {
-        if (!iter->getSource()->InSamePhase(i_phaseMask))
-            continue;
-
-        if (iter->getSource()->GetExactDist2dSq(i_source) > i_distSq)
+        if (iter->getSource()->GetExactDistSq(i_source) > i_distSq)
             continue;
 
         if (iter->getSource()->GetTypeId() == TYPEID_PLAYER)

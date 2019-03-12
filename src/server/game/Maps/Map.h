@@ -53,7 +53,6 @@ struct ScriptInfo;
 struct ScriptAction;
 struct Position;
 class BattleGround;
-namespace Trinity { struct ObjectUpdater; }
 
 struct ScriptAction
 {
@@ -243,7 +242,7 @@ enum LevelRequirementVsMode
 #pragma pack(pop)
 #endif
 
-typedef std::unordered_map<Creature*, CreatureMover> CreatureMoveList;
+typedef UNORDERED_MAP<Creature*, CreatureMover> CreatureMoveList;
 
 #define MAX_HEIGHT            100000.0f                     // can be use for find ground height at surface
 #define INVALID_HEIGHT       -100000.0f                     // for check, must be equal to VMAP_INVALID_HEIGHT, real value for unknown height is VMAP_INVALID_HEIGHT_VALUE
@@ -284,10 +283,7 @@ class Map : public GridRefManager<NGridType>
         void MessageDistBroadcast(WorldObject *, WorldPacket *, float dist);
         */
 
-        void VisitNearbyCellsOf(WorldObject* obj, TypeContainerVisitor<Trinity::ObjectUpdater, GridTypeMapContainer> &gridVisitor, TypeContainerVisitor<Trinity::ObjectUpdater, WorldTypeMapContainer> &worldVisitor);
-
-        float GetVisibilityRange() const { return m_VisibleDistance; }
-        void SetVisibilityRange(float range) { m_VisibleDistance = range; }
+        float GetVisibilityDistance() const { return m_VisibleDistance; }
         //function for setting up visibility distance for maps on per-type/per-Id basis
         virtual void InitVisibilityDistance();
 
@@ -546,18 +542,15 @@ class Map : public GridRefManager<NGridType>
         template<class T>
         void RemoveFromActiveHelper(T* obj)
         {
-            // Map::Update for active object in proccess
-            if (m_activeNonPlayersIter != m_activeNonPlayers.end())
-            {
-                ActiveNonPlayers::iterator itr = m_activeNonPlayers.find(obj);
-                if (itr == m_activeNonPlayers.end())
-                    return;
-                if (itr == m_activeNonPlayersIter)
-                    ++m_activeNonPlayersIter;
-                m_activeNonPlayers.erase(itr);
-            }
-            else
-                m_activeNonPlayers.erase(obj);
+            if (!obj)
+                return;
+
+            ActiveNonPlayers::iterator itr = m_activeNonPlayers.find(obj);
+
+            if (itr == m_activeNonPlayers.end())
+                return;
+
+            m_activeNonPlayersIter = m_activeNonPlayers.erase(itr);
         }
 };
 

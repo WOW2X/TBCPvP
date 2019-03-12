@@ -32,7 +32,6 @@
 #include "CreatureAI.h"
 #include "Unit.h"
 #include "Util.h"
-#include "Spell.h"
 
 char const* petTypeSuffix[MAX_PET_TYPE] =
 {
@@ -93,15 +92,11 @@ m_declinedname(NULL), m_owner(owner)
     m_lastCommandTimer = 0;
     m_lastSpellTimer = 0;
     m_blockAutoCastTimer = 0;
-    m_originalTarget = nullptr;
-    m_tempTarget = nullptr;
 
     m_loyaltyPoints = 0;
     m_TrainingPoints = 0;
 
     m_auraUpdateMask = 0;
-
-    m_queuedSpellEntry = 0;
 
     m_spells.clear();
     m_Auras.clear();
@@ -393,13 +388,18 @@ void Pet::SavePetToDB(PetSaveMode mode)
     {
         case PET_SAVE_IN_STABLE_SLOT_1:
         case PET_SAVE_IN_STABLE_SLOT_2:
-        case PET_SAVE_NOT_IN_SLOT:
         {
             RemoveAllAuras();
+        }
+        case PET_SAVE_NOT_IN_SLOT:
+        {
+            Player *owner = GetOwner();
 
-            //only alive hunter pets get auras saved, the others don't
-            if (!(getPetType() == HUNTER_PET && isAlive()))
-                m_Auras.clear();
+            if (!isAlive())
+                RemoveAllAuras();
+
+            else if (!isHunterPet() && !owner->IsMounted() && !owner->IsBeingTeleportedNear())
+               RemoveAllAuras();
         }
         default:
             break;
@@ -547,7 +547,7 @@ void Pet::Update(uint32 diff)
         {
             // unsummon pet that lost owner
             Player* owner = GetOwner();
-            if (!owner || (!IsWithinDistInMap(owner, GetMap()->GetVisibilityRange()) && !isPossessed()) || isControlled() && !owner->GetPetGUID())
+            if (!owner || (!IsWithinDistInMap(owner, GetMap()->GetVisibilityDistance()) && !isPossessed()) || isControlled() && !owner->GetPetGUID())
             {
                 sLog->outError("Pet %u is not pet of owner %u, removed", GetEntry(), m_owner->GetName());
                 Remove(PET_SAVE_NOT_IN_SLOT, true);
@@ -586,92 +586,6 @@ void Pet::Update(uint32 diff)
                 }
             }
 
-            // queued spell system, if we have a queued spell try to execute it on current update loop otherwise it will be checked on next update tick again
-            if (isSpellQueued())
-            {
-                Unit* pOwner = GetCharmerOrOwner();
-                if (!pOwner)
-                    return;
-
-                if (m_tempTarget && m_tempTarget->isAlive())
-                {
-                    float max_range = GetSpellMaxRange(m_queuedSpellEntry);
-
-                    // check for range and los? ///@todo: should we include objectsize (boundary radius) need to check ::CheckCast
-                    // or why dont I just use checkcast?
-
-                    if (IsWithinLOSInMap(m_tempTarget) && IsWithinDist(m_tempTarget, max_range))
-                    {
-                        StopMoving();
-                        GetMotionMaster()->Clear(false);
-                        GetMotionMaster()->MoveIdle();
-
-                        /// @todo: make this one function 
-                        GetCharmInfo()->SetIsCommandAttack(false);
-                        GetCharmInfo()->SetIsAtStay(false);
-                        GetCharmInfo()->SetIsFollowing(false);
-                        GetCharmInfo()->SetIsReturning(false);
-
-                        // considered as triggerd? nope idk
-                        CastSpell(m_tempTarget, m_queuedSpellEntry, false);
-
-                        // okay: if positive / negative then we should return to our last target (req: target is alive and still in map?) 
-                        // if we dont have a last target return to owner
-                        if (m_originalTarget && m_originalTarget->isAlive())
-                        {
-                            GetCharmInfo()->SetIsCommandAttack(true);
-                            GetCharmInfo()->SetIsAtStay(false);
-                            GetCharmInfo()->SetIsFollowing(false);
-                            GetCharmInfo()->SetIsReturning(false);
-
-                            if (ToCreature()->IsAIEnabled)
-                                ToCreature()->AI()->AttackStart(m_originalTarget);
-                        }
-                        else // no target or target is dead - return to owner
-                        {
-                            if (GetCharmInfo()->HasCommandState(COMMAND_STAY))
-                            {
-                                if (!GetCharmInfo()->IsAtStay() && !GetCharmInfo()->IsReturning())
-                                {
-                                    // Return to previous position where stay was clicked
-                                    if (!GetCharmInfo()->IsCommandAttack())
-                                    {
-                                        AttackStop();
-                                        InterruptNonMeleeSpells(false);
-
-                                        float x, y, z;
-
-                                        GetCharmInfo()->GetStayPosition(x, y, z);
-                                        GetCharmInfo()->SetIsReturning(true);
-                                        GetMotionMaster()->Clear();
-                                        GetMotionMaster()->MovePoint(GetGUIDLow(), x, y, z);
-                                    }
-                                }
-                                else
-                                {
-                                    if (!GetCharmInfo()->IsFollowing() && !GetCharmInfo()->IsReturning())
-                                    {
-                                        if (!GetCharmInfo()->IsCommandAttack())
-                                        {
-                                            AttackStop();
-                                            InterruptNonMeleeSpells(false);
-                                            GetMotionMaster()->MoveFollow(GetCharmerOrOwner(), PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
-
-                                            GetCharmInfo()->SetIsCommandAttack(false);
-                                            GetCharmInfo()->SetIsAtStay(false);
-                                            GetCharmInfo()->SetIsReturning(true);
-                                            GetCharmInfo()->SetIsFollowing(false);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        cancelQueuedSpellCast();
-                    }
-                }
-            }
-                                       
             if (m_lastCommandTimer <= diff)
                 m_lastCommandTimer = 0;
             else
@@ -720,6 +634,7 @@ void Pet::Update(uint32 diff)
         default:
             break;
     }
+
     Creature::Update(diff);
 }
 
@@ -1124,7 +1039,7 @@ bool Guardian::InitStatsForLevel(uint32 petlevel)
         else
             scale = cFamily->minScale + float(getLevel() - cFamily->minScaleLevel) / cFamily->maxScaleLevel * (cFamily->maxScale - cFamily->minScale);
 
-        SetFloatValue(OBJECT_FIELD_SCALE_X, scale);
+        SetObjectScale(scale);
     }
 
     //resistance
@@ -1138,6 +1053,8 @@ bool Guardian::InitStatsForLevel(uint32 petlevel)
         createResistance[SPELL_SCHOOL_SHADOW] = cinfo->resistance5;
         createResistance[SPELL_SCHOOL_ARCANE] = cinfo->resistance6;
     }
+    for (uint8 i = SPELL_SCHOOL_HOLY; i < MAX_SPELL_SCHOOL; ++i)
+        SetModifierValue(UnitMods(UNIT_MOD_RESISTANCE_START + i), BASE_VALUE, float(createResistance[i]));
 
     //health, mana, armor and resistance
     PetLevelInfo const* pInfo = sObjectMgr->GetPetLevelInfo(creature_ID, petlevel);
@@ -1155,6 +1072,10 @@ bool Guardian::InitStatsForLevel(uint32 petlevel)
     }
     else                                            // not exist in DB, use some default fake data
     {
+        // remove elite bonuses included in DB values
+        //SetCreateHealth(uint32(((float(cinfo->maxhealth) / cinfo->maxlevel) / (1 + 2 * cinfo->rank)) * petlevel));
+        //SetCreateMana(uint32(((float(cinfo->maxmana)   / cinfo->maxlevel) / (1 + 2 * cinfo->rank)) * petlevel));
+
         SetCreateStat(STAT_STRENGTH, 22);
         SetCreateStat(STAT_AGILITY, 22);
         SetCreateStat(STAT_STAMINA, 25);
@@ -1216,11 +1137,11 @@ bool Guardian::InitStatsForLevel(uint32 petlevel)
                         SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, float(petlevel + (petlevel / 4)));
                         break;
                     }
-                        
+
                 }
             }
             else
-            {            
+            {
                 SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, float(petlevel - (petlevel / 4)));
                 SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, float(petlevel + (petlevel / 4)));
             }
@@ -1271,14 +1192,18 @@ bool Guardian::InitStatsForLevel(uint32 petlevel)
                     SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, float(petlevel * 4 + petlevel));
                     break;
                 }
-                case 19833: // Snake Trap - Venomous Snake
+                case 19833: //Snake Trap - Venomous Snake
                 {
+                    SetCreateHealth(120);
+                    SetCreateMana(0);
                     SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, float((petlevel / 2) - 25));
                     SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, float((petlevel / 2) - 18));
                     break;
                 }
-                case 19921: // Snake Trap - Viper
+                case 19921: //Snake Trap - Viper
                 {
+                    SetCreateHealth(120);
+                    SetCreateMana(0);
                     SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, float(petlevel / 2 - 10));
                     SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, float(petlevel / 2));
                     break;
@@ -1303,14 +1228,10 @@ bool Guardian::InitStatsForLevel(uint32 petlevel)
         }
     }
 
-    for (uint8 i = SPELL_SCHOOL_HOLY; i < MAX_SPELL_SCHOOL; ++i)
-        SetModifierValue(UnitMods(UNIT_MOD_RESISTANCE_START + i), BASE_VALUE, float(createResistance[i]));
-
     UpdateAllStats();
 
     SetHealth(GetMaxHealth());
     SetPower(POWER_MANA, GetMaxPower(POWER_MANA));
-
     return true;
 }
 
@@ -1715,13 +1636,14 @@ void Pet::removeSpell(uint16 spell_id)
     RemoveAurasDueToSpell(spell_id);
 }
 
-void Pet::InitPetCreateSpells(bool instantMode)
+void Pet::InitPetCreateSpells()
 {
     m_charmInfo->InitPetActionBar();
     m_spells.clear();
 
     int32 usedtrainpoints = 0, petspellid;
-    if (PetCreateSpellEntry const* CreateSpells = instantMode ? sObjectMgr->GetPetCreateSpellInstantEntry(GetEntry()) : sObjectMgr->GetPetCreateSpellEntry(GetEntry()))
+    PetCreateSpellEntry const* CreateSpells = sObjectMgr->GetPetCreateSpellEntry(GetEntry());
+    if (CreateSpells)
     {
         Unit* owner = GetOwner();
         Player* p_owner = owner && owner->GetTypeId() == TYPEID_PLAYER ? owner->ToPlayer() : NULL;
@@ -2101,67 +2023,40 @@ void Pet::CastPetAura(PetAura const* aura)
         CastSpell(this, auraId, true);
 }
 
-void Pet::LockSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs)
+void Pet::ProhibitSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs)
 {
     if (!GetOwner() || GetOwner()->GetTypeId() != TYPEID_PLAYER)
         return;
 
-    WorldPacket data(SMSG_SPELL_COOLDOWN, 8 + 1 + m_spells.size() * 8);
+    WorldPacket data(SMSG_SPELL_COOLDOWN, 8+1+m_spells.size()*8);
     data << uint64(GetGUID());
     data << uint8(0x0);                                     // flags (0x1, 0x2)
+    time_t curTime = time(NULL);
 
-    time_t curTime = time(nullptr);
     for (PetSpellMap::const_iterator itr = m_spells.begin(); itr != m_spells.end(); ++itr)
     {
         uint32 unSpellId = itr->first;
         SpellEntry const *spellInfo = sSpellStore.LookupEntry(unSpellId);
-        ASSERT(spellInfo);
-
-        if ((idSchoolMask & GetSpellSchoolMask(spellInfo)) && GetCreatureSpellCooldownDelay(unSpellId) < unTimeMs)
+        if (!spellInfo)
         {
-            data << uint32(unSpellId);
-            data << uint32(unTimeMs);
-            _AddCreatureSpellCooldown(unSpellId,curTime + unTimeMs / IN_MILLISECONDS); /// @todo: robinsch: std::chrono
+            ASSERT(spellInfo);
+            continue;
+        }
+
+        // Not send cooldown for this spells
+        if (spellInfo->Attributes & SPELL_ATTR_DISABLED_WHILE_ACTIVE)
+            continue;
+        if (spellInfo->PreventionType != SPELL_PREVENTION_TYPE_SILENCE)
+            continue;
+
+        if ((idSchoolMask & GetSpellSchoolMask(spellInfo)) && GetSpellCooldownDelay(unSpellId) < unTimeMs)
+        {
+            data << unSpellId;
+            data << unTimeMs;                               // in m.secs
+            _AddCreatureSpellCooldown(unSpellId,curTime + unTimeMs/1000);
         }
     }
 
     if (Player* owner = GetOwner())
         owner->GetSession()->SendPacket(&data);
-}
-
-void Pet::queueSpellCast(Unit* tempTarget, Unit* originalTarget, uint32 spellEntry)
-{
-    m_tempTarget = tempTarget;
-    m_originalTarget = originalTarget;
-    m_queuedSpellEntry = spellEntry;
-}
-
-void Pet::cancelQueuedSpellCast()
-{
-    m_tempTarget = nullptr;
-    m_originalTarget = nullptr;
-    m_queuedSpellEntry = 0;
-}
-
-float Pet::GetChaseDistance() const
-{
-    float range = MELEE_RANGE;
-
-    for (uint8 i = 0; i < GetPetAutoSpellSize(); ++i)
-    {
-        uint32 spellEntry = GetPetAutoSpellOnPos(i);
-        if (!spellEntry)
-            continue;
-
-        if (SpellEntry const* spellInfo = sSpellStore.LookupEntry(spellEntry))
-        {
-            if (spellInfo->RecoveryTime == 0 && // No cooldown
-                spellInfo->rangeIndex != 1 &&  // Self cast
-                spellInfo->rangeIndex != 2 && // Combat range
-                range < GetSpellMaxRange(spellInfo))
-                range = GetSpellMinRange(spellInfo);
-        }
-    }
-
-    return range;
 }

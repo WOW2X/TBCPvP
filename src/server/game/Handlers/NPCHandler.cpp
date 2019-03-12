@@ -103,13 +103,13 @@ void WorldSession::HandleTrainerListOpcode(WorldPacket & recv_data)
     SendTrainerList(guid);
 }
 
-void WorldSession::SendTrainerList(uint64 guid)
+void WorldSession::SendTrainerList(uint64 guid, uint64 entry)
 {
-    std::string str = GetTrinityString(LANG_NPC_TAINER_HELLO);
-    SendTrainerList(guid, str);
+    std::string str = GetSkyFireString(LANG_NPC_TAINER_HELLO);
+    SendTrainerList(guid, entry, str);
 }
 
-void WorldSession::SendTrainerList(uint64 guid, const std::string& strTitle)
+void WorldSession::SendTrainerList(uint64 guid, uint64 entry, const std::string& strTitle)
 {
     sLog->outDebug("WORLD: SendTrainerList");
 
@@ -136,7 +136,7 @@ void WorldSession::SendTrainerList(uint64 guid, const std::string& strTitle)
         return;
     }
 
-    TrainerSpellData const* trainer_spells = unit->GetTrainerSpells();
+    TrainerSpellData const* trainer_spells = entry ? sObjectMgr->GetNpcTrainerSpells(entry) : unit->GetTrainerSpells();
     if (!trainer_spells)
     {
         sLog->outDebug("WORLD: SendTrainerList - Training spells not found for creature (GUID: %u Entry: %u)",
@@ -212,9 +212,13 @@ void WorldSession::HandleTrainerBuySpellOpcode(WorldPacket & recv_data)
         return;
 
     // check present spell in trainer spell list
-    TrainerSpellData const* trainer_spells = unit->GetTrainerSpells();
-    if (!trainer_spells)
-        return;
+    TrainerSpellData const* trainer_spells;
+
+    // Multigossip Trainer
+    if (unit->isGossipTrainer())
+        trainer_spells = sObjectMgr->GetNpcTrainerSpells(GetPlayer()->m_currentTrainerEntry);
+    else
+        trainer_spells = unit->GetTrainerSpells();
 
     // not found, cheat?
     TrainerSpell const* trainer_spell = trainer_spells->Find(spellId);

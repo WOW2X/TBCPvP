@@ -21,8 +21,8 @@
 #ifndef TRINITY_OBJECTACCESSOR_H
 #define TRINITY_OBJECTACCESSOR_H
 
-#include "Common.h"
 #include "Define.h"
+#include "UnorderedMap.h"
 
 #include "ByteBuffer.h"
 #include "UpdateData.h"
@@ -32,6 +32,8 @@
 #include "Player.h"
 
 #include <ace/Singleton.h>
+#include <ace/Thread_Mutex.h>
+#include <set>
 
 class Creature;
 class Corpse;
@@ -46,7 +48,7 @@ class HashMapHolder
 {
     public:
 
-        typedef std::unordered_map<uint64, T*> MapType;
+        typedef UNORDERED_MAP<uint64, T*> MapType;
         typedef ACE_Thread_Mutex LockType;
 
         static void Insert(T* o)
@@ -90,8 +92,8 @@ class ObjectAccessor
 
     public:
 
-        typedef std::unordered_map<uint64, Corpse*> Player2CorpsesMapType;
-        typedef std::unordered_map<Player*, UpdateData>::value_type UpdateDataValueType;
+        typedef UNORDERED_MAP<uint64, Corpse*> Player2CorpsesMapType;
+        typedef UNORDERED_MAP<Player*, UpdateData>::value_type UpdateDataValueType;
 
         // returns object if is in world
         template<class T> static T* GetObjectInWorld(uint64 guid, T* /*typeSpecifier*/)
@@ -172,9 +174,9 @@ class ObjectAccessor
         // these functions return objects if found in whole world
         // ACCESS LIKE THAT IS NOT THREAD SAFE
         static Pet* FindPet(uint64);
-        static Player* FindPlayer(uint64);
+        static Player* FindPlayer(uint64, bool force = false);
         static Unit* FindUnit(uint64);
-        Player* FindPlayerByName(const char* name);
+        Player* FindPlayerByName(const char* name, bool force = false);
 
         // when using this, you must use the hashmapholder's lock
         HashMapHolder<Player>::MapType& GetPlayers()

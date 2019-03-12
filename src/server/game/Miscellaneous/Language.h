@@ -723,10 +723,7 @@ enum SkyFireStrings
     LANG_BAN_CHAR                       = 816,
     LANG_UNBAN_CHAR                     = 817,
 
-    LANG_MUTE_CHAR                      = 818,
-    LANG_UNMUTE_CHAR                    = 819,
-
-    // Room for in-game strings           820-999 not used
+    // Room for in-game strings           818-999 not used
 
     // Level 4 (CLI only commands)
     LANG_COMMAND_EXIT                   = 1000,
@@ -854,9 +851,6 @@ enum SkyFireStrings
     LANG_COMMAND_TICKETLISTADDCOMMENT   = 2024,
     LANG_COMMAND_TICKETLISTAGECREATE    = 2025,
 
-    LANG_COMMAND_ME_CHANGEDPHASE        = 2026,
-    LANG_COMMAND_YOU_CHANGEDPHASE       = 2027,
-
     // Trinity strings                     5000-9999
     LANG_COMMAND_FREEZE                 = 5000,
     LANG_COMMAND_FREEZE_ERROR           = 5001,
@@ -870,7 +864,9 @@ enum SkyFireStrings
     LANG_COMMAND_PLAYED_TO_ALL          = 5009,
     LANG_CHANNEL_NOT_PUBLIC             = 5010,
     LANG_CHANNEL_PUBLIC_CHANGED         = 5011,
-    // Room for more Trinity strings       5012-9999
+
+    LANG_COMMAND_ARENA_DISBAND          = 5012,
+    // Room for more Trinity strings       5013-9999
 
     // Used for GM Announcements
     LANG_GM_BROADCAST                    = 6613,

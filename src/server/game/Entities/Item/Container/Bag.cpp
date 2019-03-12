@@ -80,7 +80,7 @@ bool Bag::Create(uint32 guidlow, uint32 itemid, Player const* owner)
     Object::_Create(guidlow, 0, HIGHGUID_CONTAINER);
 
     SetEntry(itemid);
-    SetFloatValue(OBJECT_FIELD_SCALE_X, 1.0f);
+    SetObjectScale(1.0f);
 
     SetUInt64Value(ITEM_FIELD_OWNER, owner ? owner->GetGUID() : 0);
     SetUInt64Value(ITEM_FIELD_CONTAINED, owner ? owner->GetGUID() : 0);
@@ -108,10 +108,17 @@ void Bag::SaveToDB()
     Item::SaveToDB();
 }
 
-bool Bag::LoadFromDB(uint32 guid, uint64 owner_guid, QueryResult_AutoPtr result)
+bool Bag::LoadFromDB(uint32 guid, uint64 owner_guid, Field* fields)
 {
-    if (!Item::LoadFromDB(guid, owner_guid, result))
+    if (!Item::LoadFromDB(guid, owner_guid, fields))
         return false;
+
+        ItemPrototype const* itemProto = sObjectMgr->GetItemPrototype(GetEntry());
+        if (!itemProto || itemProto->ContainerSlots > MAX_BAG_SIZE)
+            return false;
+
+        // Setting the number of Slots the Container has
+        SetUInt32Value(CONTAINER_FIELD_NUM_SLOTS, itemProto->ContainerSlots);
 
     // cleanup bag content related item value fields (its will be filled correctly from `character_inventory`)
     for (uint8 i = 0; i < MAX_BAG_SIZE; ++i)
@@ -192,15 +199,6 @@ bool Bag::IsEmpty() const
     return true;
 }
 
-Item* Bag::GetItemByEntry(uint32 itemEntry) const
-{
-    for (uint32 i = 0; i < GetBagSize(); ++i)
-        if (m_bagslot[i] && m_bagslot[i]->GetEntry() == itemEntry)
-            return m_bagslot[i];
-
-    return nullptr;
-}
-
 uint32 Bag::GetItemCount(uint32 item, Item* eItem) const
 {
     Item *pItem;
@@ -242,4 +240,3 @@ Item* Bag::GetItemByPos(uint8 slot) const
 
     return NULL;
 }
-

@@ -234,7 +234,11 @@ namespace VMAP
         liquid->iFlags = new uint8[size];
         if (result && fread(liquid->iFlags, sizeof(uint8), size, rf) != size) result = false;
         if (!result)
+        {
             delete liquid;
+            liquid = NULL;
+        }
+
         out = liquid;
         return result;
     }
@@ -417,9 +421,6 @@ namespace VMAP
 
     bool WorldModel::IntersectRay(const G3D::Ray &ray, float &distance, bool stopAtFirstHit) const
     {
-        // M2 models are not taken into account for LoS calculation
-        if (Flags & 1)
-            return false;
         // small M2 workaround, maybe better make separate class with virtual intersection funcs
         // in any case, there's no need to use a bound tree if we only have one submodel
         if (groupModels.size() == 1)

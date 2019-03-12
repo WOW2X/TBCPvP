@@ -35,3 +35,4 @@ enum ePets
 // 15 total
 
 void CreatePet(Player* player, Creature* creature, uint32 entry);
+bool GossipSelect_beastmaster(Player* player, Creature* creature, uint32 sender, uint32 action);

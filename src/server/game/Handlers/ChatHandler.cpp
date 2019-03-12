@@ -120,14 +120,17 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket & recv_data)
                 GetPlayer()->GetName(), msg.c_str());
         }
 
-        // Disabled addon channel?
+        // check if addon messages are disabled
         if (!sWorld->getConfig(CONFIG_ADDON_CHANNEL))
+        {
+            recv_data.rpos();
             return;
+        }
     }
     // LANG_ADDON should not be changed nor be affected by flood control
     else
     {
-        // send in universal language if player in .gmon mode (ignore spell effects)
+        // send in universal language if player in ".gm on" mode (ignore spell effects)
         if (_player->isGameMaster())
             lang = LANG_UNIVERSAL;
         else
@@ -164,25 +167,32 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket & recv_data)
 
         if (!_player->CanSpeak())
         {
-            std::string timeStr = secsToTimeString(m_muteTime - time(NULL));
-            SendNotification(GetTrinityString(LANG_WAIT_BEFORE_SPEAKING), timeStr.c_str());
-            return;
+            if (m_muteTime > 0) // only non-permanent mutes apply to all chat
+            {
+                std::string msg = "";
+                recv_data >> msg;
+                if (ChatHandler(this).ParseCommands(msg.c_str()) == 0)
+                {
+                    std::string timeStr = secsToTimeString(m_muteTime - time(NULL));
+                    SendNotification(GetSkyFireString(LANG_WAIT_BEFORE_SPEAKING), timeStr.c_str());
+                }
+
+                return;
+            }
+            else // apply aura and do not return
+            {
+                if (!GetPlayer()->HasAura(1852, 0))
+                    GetPlayer()->CastSpell(_player, 1852, true);
+            }
         }
 
         if (type != CHAT_MSG_AFK && type != CHAT_MSG_DND && type != CHAT_MSG_RAID)
             GetPlayer()->UpdateSpeakTime();
     }
 
-    if (GetPlayer()->HasAura(1852, 0) && type != CHAT_MSG_WHISPER)
-    {
-        std::string msg="";
-        recv_data >> msg;
-        if (ChatHandler(this).ParseCommands(msg.c_str()) == 0)
-        {
-            SendNotification(GetTrinityString(LANG_GM_SILENCE), GetPlayer()->GetName());
-            return;
-        }
-    }
+    if (GetPlayer()->HasAura(1852, 0)) // player has "Silenced" GM spell on
+        if (GetPlayer()->CanSpeak()) // not permanently muted (anymore?), remove aura
+            GetPlayer()->RemoveAurasDueToSpell(1852);
 
     switch (type)
     {
@@ -202,8 +212,11 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket & recv_data)
             if (GetPlayer()->isSpectator())
                 break;
 
-            if (GetPlayer()->HasAtLoginFlag(AT_LOGIN_MUTED))
-                break;
+            if (!GetPlayer()->CanSpeak())
+            {
+                SendNotification(GetSkyFireString(LANG_GM_SILENCE), GetPlayer()->GetName());
+                return;
+            }
 
             if (!processChatmessageFurtherAfterSecurityChecks(msg, lang))
                 return;
@@ -235,9 +248,6 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket & recv_data)
             if (msg.empty())
                 break;
 
-            if (GetPlayer()->HasAtLoginFlag(AT_LOGIN_MUTED))
-                break;
-
             if (!normalizePlayerName(to))
             {
                 SendPlayerNotFoundNotice(to);
@@ -248,7 +258,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket & recv_data)
                 if (!GetPlayer()->DoSpamCheck(msg))
                     return;
 
-            Player* player = sObjectMgr->GetPlayer(to.c_str());
+            Player* player = sObjectMgr->GetPlayer(to.c_str(), true);
             uint32 tSecurity = GetSecurity();
             uint32 pSecurity = player ? player->GetSession()->GetSecurity() : SEC_PLAYER;
             if (!player || (lang != LANG_ADDON && tSecurity == SEC_PLAYER && pSecurity > SEC_PLAYER && !player->isAcceptWhispers()))
@@ -268,17 +278,18 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket & recv_data)
                 }
             }
 
-            if (GetPlayer()->HasAura(1852, 0) && !player->isGameMaster())
+            if (!GetPlayer()->CanSpeak() && !player->isGameMaster())
             {
-                SendNotification(GetTrinityString(LANG_GM_SILENCE), GetPlayer()->GetName());
+                SendNotification(GetSkyFireString(LANG_GM_SILENCE), GetPlayer()->GetName());
                 return;
             }
 
             if (GetPlayer()->isSpectator() && player->InArena())
                 return;
 
-            GetPlayer()->Whisper(msg, lang, player->GetGUID());
-        } break;
+            GetPlayer()->Whisper(msg, lang, player);
+        }
+        break;
 
         case CHAT_MSG_PARTY:
         {
@@ -483,8 +494,11 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket & recv_data)
             if (msg.empty())
                 break;
 
-            if (GetPlayer()->HasAtLoginFlag(AT_LOGIN_MUTED))
-                break;
+            if (!GetPlayer()->CanSpeak() && !GetPlayer()->InArena())
+            {
+                SendNotification(GetSkyFireString(LANG_GM_SILENCE), GetPlayer()->GetName());
+                return;
+            }
 
             if (GetPlayer()->SpamCheckForType(type, lang))
                 if (!GetPlayer()->DoSpamCheck(msg))
@@ -515,8 +529,11 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket & recv_data)
             if (msg.empty())
                 break;
 
-            if (GetPlayer()->HasAtLoginFlag(AT_LOGIN_MUTED))
-                break;
+            if (!GetPlayer()->CanSpeak() && !GetPlayer()->InArena())
+            {
+                SendNotification(GetSkyFireString(LANG_GM_SILENCE), GetPlayer()->GetName());
+                return;
+            }
 
             //battleground raid is always in Player->GetGroup(), never in GetOriginalGroup()
             Group *group = GetPlayer()->GetGroup();
@@ -544,8 +561,11 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket & recv_data)
             if (msg.empty())
                 break;
 
-            if (GetPlayer()->HasAtLoginFlag(AT_LOGIN_MUTED))
-                break;
+            if (!GetPlayer()->CanSpeak())
+            {
+                SendNotification(GetSkyFireString(LANG_GM_SILENCE), GetPlayer()->GetName());
+                return;
+            }
 
             if (GetPlayer()->SpamCheckForType(type, lang))
                 if (!GetPlayer()->DoSpamCheck(msg))
@@ -581,7 +601,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket & recv_data)
                 if (!msg.empty() || !_player->isAFK())
                 {
                     if (msg.empty())
-                        _player->afkMsg = GetTrinityString(LANG_PLAYER_AFK_DEFAULT);
+                        _player->afkMsg = GetSkyFireString(LANG_PLAYER_AFK_DEFAULT);
                     else
                         _player->afkMsg = msg;
                 }
@@ -602,7 +622,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket & recv_data)
             if (!msg.empty() || !_player->isDND())
             {
                 if (msg.empty())
-                    _player->dndMsg = GetTrinityString(LANG_PLAYER_DND_DEFAULT);
+                    _player->dndMsg = GetSkyFireString(LANG_PLAYER_DND_DEFAULT);
                 else
                     _player->dndMsg = msg;
             }
@@ -637,15 +657,18 @@ void WorldSession::HandleTextEmoteOpcode(WorldPacket & recv_data)
 
     if (!GetPlayer()->CanSpeak())
     {
-        std::string timeStr = secsToTimeString(m_muteTime - time(NULL));
-        SendNotification(GetTrinityString(LANG_WAIT_BEFORE_SPEAKING), timeStr.c_str());
+        if (m_muteTime > 0)
+        {
+            std::string timeStr = secsToTimeString(m_muteTime - time(NULL));
+            SendNotification(GetSkyFireString(LANG_WAIT_BEFORE_SPEAKING), timeStr.c_str());
+        }
+        else
+            SendNotification(GetSkyFireString(LANG_GM_SILENCE), GetPlayer()->GetName());
+
         return;
     }
 
     if (GetPlayer()->isSpectator())
-        return;
-
-    if (GetPlayer()->HasAtLoginFlag(AT_LOGIN_MUTED))
         return;
 
     GetPlayer()->UpdateSpeakTime(true);

@@ -1013,8 +1013,8 @@ void ObjectMgr::LoadCreatures()
     QueryResult_AutoPtr result = WorldDatabase.Query("SELECT creature.guid, id, map, modelid, "
     //   4             5           6           7           8            9              10         11
         "equipment_id, position_x, position_y, position_z, orientation, spawntimesecs, spawndist, currentwaypoint, "
-    //   12         13       14          15            16         17     18         19
-        "curhealth, curmana, DeathState, MovementType, spawnMask, phaseMask, event, pool_entry "
+    //   12         13       14          15            16         17     18
+        "curhealth, curmana, DeathState, MovementType, spawnMask, event, pool_entry "
         "FROM creature LEFT OUTER JOIN game_event_creature ON creature.guid = game_event_creature.guid "
         "LEFT OUTER JOIN pool_creature ON creature.guid = pool_creature.guid");
 
@@ -1064,9 +1064,8 @@ void ObjectMgr::LoadCreatures()
         data.is_dead        = fields[14].GetBool();
         data.movementType   = fields[15].GetUInt8();
         data.spawnMask      = fields[16].GetUInt8();
-        data.phaseMask      = fields[17].GetUInt32();
-        int16 gameEvent     = fields[18].GetInt16();
-        int16 PoolId        = fields[19].GetInt16();
+        int16 gameEvent     = fields[17].GetInt16();
+        int16 PoolId        = fields[18].GetInt16();
 
         if (heroicCreatures.find(data.id) != heroicCreatures.end())
         {
@@ -1115,12 +1114,6 @@ void ObjectMgr::LoadCreatures()
                 sLog->outErrorDb("Table creature has creature (GUID: %u Entry: %u) with MovementType=0 (idle) has spawndist<>0, set to 0.", guid, data.id);
                 data.spawndist = 0.0f;
             }
-        }
-
-        if (data.phaseMask == 0)
-        {
-            sLog->outErrorDb("Table `creature` have creature (GUID: %u Entry: %u) with `phaseMask`=0 (not visible for anyone), set to 1.", guid, data.id);
-            data.phaseMask = PHASEMASK_NORMAL;
         }
 
         if (gameEvent == 0 && PoolId == 0)                      // if not this is to be managed by GameEvent System or Pool system
@@ -1267,8 +1260,8 @@ void ObjectMgr::LoadGameobjects()
 
     //                                                       0                1   2    3           4           5           6
     QueryResult_AutoPtr result = WorldDatabase.Query("SELECT gameobject.guid, id, map, position_x, position_y, position_z, orientation, "
-    //   7          8          9          10         11             12            13     14         15         16     17
-        "rotation0, rotation1, rotation2, rotation3, spawntimesecs, animprogress, state, spawnMask, phaseMask, event, pool_entry "
+    //   7          8          9          10         11             12            13     14         15     16
+        "rotation0, rotation1, rotation2, rotation3, spawntimesecs, animprogress, state, spawnMask, event, pool_entry "
         "FROM gameobject LEFT OUTER JOIN game_event_gameobject ON gameobject.guid = game_event_gameobject.guid "
         "LEFT OUTER JOIN pool_gameobject ON gameobject.guid = pool_gameobject.guid");
 
@@ -1318,9 +1311,8 @@ void ObjectMgr::LoadGameobjects()
         data.go_state       = GOState(go_state);
 
         data.spawnMask      = fields[14].GetUInt8();
-        data.phaseMask      = fields[15].GetUInt32();
-        int16 gameEvent     = fields[16].GetInt16();
-        int16 PoolId        = fields[17].GetInt16();
+        int16 gameEvent     = fields[15].GetInt16();
+        int16 PoolId        = fields[16].GetInt16();
 
         if (data.rotation2 < -1.0f || data.rotation2 > 1.0f)
         {
@@ -1849,10 +1841,6 @@ void ObjectMgr::LoadItemPrototypes()
                         sLog->outErrorDb("Item (Entry: %u) has broken spell in spellid_%d (%u)", i, j+1, proto->Spells[j].SpellId);
                         const_cast<ItemPrototype*>(proto)->Spells[j].SpellId = 0;
                     }
-
-                    // load item spell category cooldowns
-                    if (spellInfo && proto->Spells[j].SpellCategory)
-                        sSpellCategoryStore[proto->Spells[j].SpellCategory].insert(proto->Spells[j].SpellId).second;
                 }
             }
         }
@@ -2177,7 +2165,12 @@ void ObjectMgr::LoadPlayerInfo()
 
     // Load playercreate spells
     {
-        QueryResult_AutoPtr result = WorldDatabase.Query("SELECT racemask, classmask, Spell FROM playercreateinfo_spell");
+        QueryResult_AutoPtr result = QueryResult_AutoPtr(NULL);
+        if (sWorld->getConfig(CONFIG_START_ALL_SPELLS))
+            result = WorldDatabase.Query("SELECT race, class, Spell, Active FROM playercreateinfo_spell_custom");
+        else
+            result = WorldDatabase.Query("SELECT race, class, Spell, Active FROM playercreateinfo_spell");
+
         uint32 count = 0;
 
         if (!result)
@@ -2191,103 +2184,30 @@ void ObjectMgr::LoadPlayerInfo()
             do
             {
                 Field* fields = result->Fetch();
-                uint32 raceMask  = fields[0].GetUInt32();
-                uint32 classMask = fields[1].GetUInt32();
-                uint32 spellId   = fields[2].GetUInt32();
 
-                if (raceMask != 0 && !(raceMask & RACEMASK_ALL_PLAYABLE))
+                uint32 current_race = fields[0].GetUInt32();
+                if (current_race >= MAX_RACES)
                 {
-                    sLog->outErrorDb("Wrong race mask %u in `playercreateinfo_spell` table, ignoring.", raceMask);
+                    sLog->outErrorDb("Wrong race %u in playercreateinfo_spell table, ignoring.", current_race);
                     continue;
                 }
 
-                if (classMask != 0 && !(classMask & CLASSMASK_ALL_PLAYABLE))
+                uint32 current_class = fields[1].GetUInt32();
+                if (current_class >= MAX_CLASSES)
                 {
-                    sLog->outErrorDb("Wrong class mask %u in `playercreateinfo_spell` table, ignoring.", classMask);
+                    sLog->outErrorDb("Wrong class %u in playercreateinfo_spell table, ignoring.", current_class);
                     continue;
                 }
 
-                for (uint32 raceIndex = RACE_HUMAN; raceIndex < MAX_RACES; ++raceIndex)
-                {
-                    if (raceMask == 0 || ((1 << (raceIndex - 1)) & raceMask))
-                    {
-                        for (uint32 classIndex = CLASS_WARRIOR; classIndex < MAX_CLASSES; ++classIndex)
-                        {
-                            if (classMask == 0 || ((1 << (classIndex - 1)) & classMask))
-                            {
-                                if (PlayerInfo* info = &playerInfo[raceIndex][classIndex])
-                                {
-                                    info->spell.push_back(spellId);
-                                    ++count;
-                                }
-                            }
-                        }
-                    }
-                }
+                PlayerInfo* pInfo = &playerInfo[current_race][current_class];
+                pInfo->spell.push_back(CreateSpellPair(fields[2].GetUInt16(), fields[3].GetUInt8()));
+
+                ++count;
             }
-
             while (result->NextRow());
 
             sLog->outString();
             sLog->outString(">> Loaded %u player create spells", count);
-        }
-    }
-
-    // Load playercreate spells custom
-    {
-        QueryResult_AutoPtr result = WorldDatabase.Query("SELECT racemask, classmask, Spell FROM playercreateinfo_spell_custom");
-        uint32 count = 0;
-
-        if (!result)
-        {
-            sLog->outString();
-            sLog->outString(">> Loaded %u player create spells custom", count);
-            sLog->outErrorDb("Error loading player starting spells custom or empty table.");
-        }
-        else
-        {
-            do
-            {
-                Field* fields = result->Fetch();
-                uint32 raceMask = fields[0].GetUInt32();
-                uint32 classMask = fields[1].GetUInt32();
-                uint32 spellId = fields[2].GetUInt32();
-
-                if (raceMask != 0 && !(raceMask & RACEMASK_ALL_PLAYABLE))
-                {
-                    sLog->outErrorDb("Wrong race mask %u in `playercreateinfo_spell_custom` table, ignoring.", raceMask);
-                    continue;
-                }
-
-                if (classMask != 0 && !(classMask & CLASSMASK_ALL_PLAYABLE))
-                {
-                    sLog->outErrorDb("Wrong class mask %u in `playercreateinfo_spell_custom` table, ignoring.", classMask);
-                    continue;
-                }
-
-                for (uint32 raceIndex = RACE_HUMAN; raceIndex < MAX_RACES; ++raceIndex)
-                {
-                    if (raceMask == 0 || ((1 << (raceIndex - 1)) & raceMask))
-                    {
-                        for (uint32 classIndex = CLASS_WARRIOR; classIndex < MAX_CLASSES; ++classIndex)
-                        {
-                            if (classMask == 0 || ((1 << (classIndex - 1)) & classMask))
-                            {
-                                if (PlayerInfo* info = &playerInfo[raceIndex][classIndex])
-                                {
-                                    info->spell_custom.push_back(spellId);
-                                    ++count;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            while (result->NextRow());
-
-            sLog->outString();
-            sLog->outString(">> Loaded %u player create spells custom", count);
         }
     }
 
@@ -3730,45 +3650,8 @@ void ObjectMgr::LoadPetCreateSpells()
     }
     while (result->NextRow());
 
-    result = WorldDatabase.Query("SELECT entry, Spell1, Spell2, Spell3, Spell4 FROM petcreateinfo_spell_instant");
-    if (!result)
-    {
-        sLog->outString();
-        sLog->outString(">> Loaded 0 pet create spells (instant mode)");
-        sLog->outErrorDb("petcreateinfo_spell_instant table is empty!");
-        return;
-    }
-
-    count = 0;
-
-    mPetCreateSpellInstant.clear();
-
-    do
-    {
-        Field *fields = result->Fetch();
-
-        uint32 creature_id = fields[0].GetUInt32();
-
-        if (!creature_id || !sCreatureStorage.LookupEntry<CreatureTemplate>(creature_id))
-            continue;
-
-        PetCreateSpellEntry PetCreateSpell;
-        for (int i = 0; i < 4; i++)
-        {
-            PetCreateSpell.spellid[i] = fields[i + 1].GetUInt32();
-
-            if (PetCreateSpell.spellid[i] && !sSpellStore.LookupEntry(PetCreateSpell.spellid[i]))
-                sLog->outErrorDb("Spell %u listed in petcreateinfo_spell does not exist", PetCreateSpell.spellid[i]);
-        }
-
-        mPetCreateSpellInstant[creature_id] = PetCreateSpell;
-
-        ++count;
-    }
-    while (result->NextRow());
-
     sLog->outString();
-    sLog->outString(">> Loaded %u pet create spells (instant mode)", count);
+    sLog->outString(">> Loaded %u pet create spells", count);
 }
 
 void ObjectMgr::LoadScripts(ScriptsType type)
@@ -6443,7 +6326,7 @@ bool ObjectMgr::LoadSkyFireStrings(DatabaseType& db, char const* table, int32 mi
     if (!result)
     {
         sLog->outString();
-        if (min_value == MIN_TRINITY_STRING_ID)              // error only in case internal strings
+        if (min_value == MIN_SKYFIRE_STRING_ID)              // error only in case internal strings
             sLog->outErrorDb(">> Loaded 0 Trinity strings. DB table %s is empty. Cannot continue.", table);
         else
             sLog->outString(">> Loaded 0 string templates. DB table %s is empty.", table);
@@ -6502,7 +6385,7 @@ bool ObjectMgr::LoadSkyFireStrings(DatabaseType& db, char const* table, int32 mi
     } while (result->NextRow());
 
     sLog->outString();
-    if (min_value == MIN_TRINITY_STRING_ID)
+    if (min_value == MIN_SKYFIRE_STRING_ID)
         sLog->outString(">> Loaded %u Trinity strings from table %s", count, table);
     else
         sLog->outString(">> Loaded %u string templates from %s", count, table);
@@ -6510,11 +6393,11 @@ bool ObjectMgr::LoadSkyFireStrings(DatabaseType& db, char const* table, int32 mi
     return true;
 }
 
-const char *ObjectMgr::GetTrinityString(int32 entry, int locale_idx) const
+const char *ObjectMgr::GetSkyFireString(int32 entry, int locale_idx) const
 {
     // locale_idx == -1 -> default, locale_idx >= 0 in to idx+1
     // Content[0] always exist if exist SkyFireStringLocale
-    if (SkyFireStringLocale const *msl = GetTrinityStringLocale(entry))
+    if (SkyFireStringLocale const *msl = GetSkyFireStringLocale(entry))
     {
         if (msl->Content.size() > locale_idx+1 && !msl->Content[locale_idx+1].empty())
             return msl->Content[locale_idx+1].c_str();
@@ -6523,7 +6406,7 @@ const char *ObjectMgr::GetTrinityString(int32 entry, int locale_idx) const
     }
 
     if (entry > 0)
-        sLog->outErrorDb("Entry %i not found in trinity_string table.", entry);
+        sLog->outErrorDb("Entry %i not found in skyfire_string table.", entry);
     else
         sLog->outErrorDb("Trinity string entry %i not found in DB.", entry);
     return "<error>";
@@ -7521,7 +7404,7 @@ void ObjectMgr::CheckScripts(ScriptsType type, std::set<int32>& ids)
             {
                 case SCRIPT_COMMAND_TALK:
                 {
-                    if (!GetTrinityStringLocale (itrM->second.Talk.TextID))
+                    if (!GetSkyFireStringLocale (itrM->second.Talk.TextID))
                         sLog->outErrorDb("Table `db_script_string` not has string id  %u used db script (ID: %u)", itrM->second.Talk.TextID, itrMM->first);
 
                     if (ids.find(itrM->second.Talk.TextID) != ids.end())
@@ -7541,7 +7424,7 @@ void ObjectMgr::LoadDbScriptStrings()
     std::set<int32> ids;
 
     for (int32 i = MIN_DB_SCRIPT_STRING_ID; i < MAX_DB_SCRIPT_STRING_ID; ++i)
-        if (GetTrinityStringLocale(i))
+        if (GetSkyFireStringLocale(i))
             ids.insert(i);
 
     for (int type = SCRIPTS_FIRST; type < SCRIPTS_LAST; ++type)
@@ -7598,31 +7481,4 @@ CreatureTemplate const* GetCreatureTemplateStore(uint32 entry)
 Quest const* GetQuestTemplateStore(uint32 entry)
 {
     return sObjectMgr->GetQuestTemplate(entry);
-}
-
-// 
-void ObjectMgr::LoadCreatureVendorItemCount()
-{
-    QueryResult_AutoPtr result = WorldDatabase.Query("SELECT guid, item, count, lastIncrementTime FROM creature_vendor");
-    if (!result)
-    {
-        sLog->outString();
-        sLog->outString(">> Loaded 0 creature vendor item count.");
-        return;
-    }
-
-    do
-    {
-        Field* fields = result->Fetch();
-
-        uint64 guid = fields[0].GetUInt32();
-        uint32 item = fields[1].GetUInt32();
-        uint32 count = fields[2].GetInt32();
-        time_t lastIncrementTime = fields[3].GetUInt64();
-
-        m_creatureVendorItemCounts[guid].push_back(VendorItemCount(item, count, lastIncrementTime));
-    } while (result->NextRow());
-
-    sLog->outString();
-    sLog->outString(">> Loaded %u Creature Vendors", m_creatureVendorItemCounts.size());
 }

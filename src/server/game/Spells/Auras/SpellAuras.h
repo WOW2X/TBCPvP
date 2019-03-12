@@ -117,8 +117,8 @@ class Aura
         void HandlePeriodicEnergize(bool Apply, bool Real);
         void HandleAuraModResistanceExclusive(bool Apply, bool Real);
         void HandleModStealth(bool Apply, bool Real);
-        void HandleModInvisibility(bool Apply, bool Real);
-        void HandleModInvisibilityDetect(bool Apply, bool Real);
+        void HandleInvisibility(bool Apply, bool Real);
+        void HandleInvisibilityDetect(bool Apply, bool Real);
         void HandleAuraModTotalHealthPercentRegen(bool Apply, bool Real);
         void HandleAuraModTotalManaPercentRegen(bool Apply, bool Real);
         void HandleAuraModResistance(bool Apply, bool Real);
@@ -150,7 +150,6 @@ class Aura
         void HandleModSpellHitChance(bool Apply, bool Real);
         void HandleAuraModScale(bool Apply, bool Real);
         void HandlePeriodicManaLeech(bool Apply, bool Real);
-        void HandlePeriodicHealthFunnel(bool apply, bool Real);
         void HandleModCastingSpeed(bool Apply, bool Real);
         void HandleAuraMounted(bool Apply, bool Real);
         void HandleWaterBreathing(bool Apply, bool Real);
@@ -214,8 +213,6 @@ class Aura
         void HandleManaShield(bool apply, bool Real);
         void HandleArenaPreparation(bool apply, bool Real);
         void HandleAuraReflectSpellSchool(bool apply, bool Real);
-        void HandleModStealthDetect(bool apply, bool Real);
-        void HandleModStealthLevel(bool apply, bool Real);
 
         virtual ~Aura();
 
@@ -392,6 +389,9 @@ class PersistentAreaAura : public Aura
         PersistentAreaAura(SpellEntry const* spellproto, uint32 eff, int32 *currentBasePoints, Unit *target, Unit *caster = NULL, Item* castItem = NULL);
         ~PersistentAreaAura();
         void Update(uint32 diff);
+
+    private:
+        int32 m_timeCheck;
 };
 
 Aura* CreateAura(SpellEntry const* spellproto, uint32 eff, int32 *currentBasePoints, Unit *target, Unit *caster = NULL, Item* castItem = NULL);

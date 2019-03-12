@@ -68,7 +68,7 @@ void WorldSession::HandleGroupInviteOpcode(WorldPacket & recv_data)
         return;
     }
 
-    Player* player = sObjectMgr->GetPlayer(membername.c_str());
+    Player* player = sObjectMgr->GetPlayer(membername.c_str(), true);
 
     // no player
     if (!player)
@@ -84,23 +84,24 @@ void WorldSession::HandleGroupInviteOpcode(WorldPacket & recv_data)
         return;
     }
     // can't group with
-    if (!sWorld->getConfig(CONFIG_ALLOW_TWO_SIDE_INTERACTION_GROUP) && GetPlayer()->GetTeam() != player->GetTeam())
+    if (!GetPlayer()->isGameMaster() && !sWorld->getConfig(CONFIG_ALLOW_TWO_SIDE_INTERACTION_GROUP) && GetPlayer()->GetTeam() != player->GetTeam())
     {
         SendPartyResult(PARTY_OP_INVITE, membername, PARTY_RESULT_TARGET_UNFRIENDLY);
         return;
     }
+    // different instances
     if (GetPlayer()->GetInstanceId() != 0 && player->GetInstanceId() != 0 && GetPlayer()->GetInstanceId() != player->GetInstanceId() && GetPlayer()->GetMapId() == player->GetMapId())
     {
         SendPartyResult(PARTY_OP_INVITE, membername, PARTY_RESULT_NOT_IN_YOUR_INSTANCE);
         return;
     }
-    // just ignore us
+    // different difficulties
     if (player->GetInstanceId() != 0 && player->GetDifficulty() != GetPlayer()->GetDifficulty())
     {
-        SendPartyResult(PARTY_OP_INVITE, membername, PARTY_RESULT_TARGET_IGNORE_YOU);
+        SendPartyResult(PARTY_OP_INVITE, membername, PARTY_RESULT_NOT_IN_YOUR_INSTANCE);
         return;
     }
-
+    // just ignore us
     if (player->GetSocial()->HasIgnore(GetPlayer()->GetGUIDLow()))
     {
         SendPartyResult(PARTY_OP_INVITE, membername, PARTY_RESULT_TARGET_IGNORE_YOU);
@@ -221,7 +222,7 @@ void WorldSession::HandleGroupDeclineOpcode(WorldPacket & /*recv_data*/)
     if (!group) return;
 
     // remember leader if online
-    Player *leader = sObjectMgr->GetPlayer(group->GetLeaderGUID());
+    Player *leader = sObjectMgr->GetPlayer(group->GetLeaderGUID(), true);
 
     // uninvite, group can be deleted
     GetPlayer()->UninviteFromGroup();
@@ -257,6 +258,12 @@ void WorldSession::HandleGroupUninviteGuidOpcode(WorldPacket & recv_data)
     Group* grp = GetPlayer()->GetGroup();
     if (!grp)
         return;
+
+    if (grp->IsLeader(guid))
+    {
+        (PARTY_OP_LEAVE, "", PARTY_RESULT_YOU_NOT_LEADER);
+        return;
+    }
 
     if (grp->IsMember(guid))
     {
@@ -324,7 +331,7 @@ void WorldSession::HandleGroupSetLeaderOpcode(WorldPacket & recv_data)
     uint64 guid;
     recv_data >> guid;
 
-    Player* player = sObjectMgr->GetPlayer(guid);
+    Player* player = sObjectMgr->GetPlayer(guid, true);
 
     /** error handling **/
     if (!player || !group->IsLeader(GetPlayer()->GetGUID()) || player->GetGroup() != group)
@@ -619,9 +626,6 @@ void WorldSession::BuildPartyMemberStatsChangedPacket(Player* player, WorldPacke
 {
     uint32 mask = player->GetGroupUpdateFlag();
 
-    if (mask == GROUP_UPDATE_FLAG_NONE)
-        return;
-
     if (mask & GROUP_UPDATE_FLAG_POWER_TYPE)                // if update power type, update current/max power also
         mask |= (GROUP_UPDATE_FLAG_CUR_POWER | GROUP_UPDATE_FLAG_MAX_POWER);
 
@@ -812,9 +816,33 @@ void WorldSession::HandleRequestPartyMemberStatsOpcode(WorldPacket &recv_data)
     data << (uint16) player->GetPower(powerType);           // GROUP_UPDATE_FLAG_CUR_POWER
     data << (uint16) player->GetMaxPower(powerType);        // GROUP_UPDATE_FLAG_MAX_POWER
     data << (uint16) player->getLevel();                    // GROUP_UPDATE_FLAG_LEVEL
-    data << (uint16) player->GetZoneId();                   // GROUP_UPDATE_FLAG_ZONE
-    data << (uint16) player->GetPositionX();                // GROUP_UPDATE_FLAG_POSITION
-    data << (uint16) player->GetPositionY();                // GROUP_UPDATE_FLAG_POSITION
+
+    // Validate location information
+    uint16 zoneId = 0;
+    uint16 locX = 0;
+    uint16 locY = 0;
+
+    if (player->IsInWorld())
+    {
+        zoneId = player->GetZoneId();
+        locX = player->GetPositionX();
+        locY = player->GetPositionY();
+    }
+    else if (player->IsBeingTeleported())               // Player is in teleportation
+    {
+        WorldLocation& loc = player->GetTeleportDest(); // So take teleportation destination
+        zoneId = sMapMgr->GetZoneId(loc.m_mapId, loc.m_positionX, loc.m_positionY, loc.m_positionZ);
+        locX = loc.m_positionX;
+        locY = loc.m_positionY;
+    }
+    else
+    {
+        // unknown player status.
+    }
+
+    data << uint16(zoneId);                            // GROUP_UPDATE_FLAG_ZONE
+    data << uint16(locX);                              // GROUP_UPDATE_FLAG_POSITION
+    data << uint16(locY);                              // GROUP_UPDATE_FLAG_POSITION
 
     uint64 auramask = 0;
     size_t maskPos = data.wpos();

@@ -17,6 +17,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AnticheatMgr.h"
 #include "Common.h"
 #include "DatabaseEnv.h"
 #include "WorldPacket.h"
@@ -55,7 +56,7 @@ static uint32 ReputationRankStrIndex[MAX_REPUTATION_RANK] =
     LANG_REP_FRIENDLY, LANG_REP_HONORED, LANG_REP_REVERED,    LANG_REP_EXALTED
 };
 
-//mute player for some times
+// mute player for specified duration in minutes
 bool ChatHandler::HandleMuteCommand(const char* args)
 {
     if (!*args)
@@ -78,7 +79,7 @@ bool ChatHandler::HandleMuteCommand(const char* args)
     else
         mutereasonstr = mutereason;
 
-    uint32 notspeaktime = (uint32) atoi(timetonotspeak);
+    int32 notspeaktime = (int32) atoi(timetonotspeak);
 
     if (!normalizePlayerName(cname))
     {
@@ -119,15 +120,25 @@ bool ChatHandler::HandleMuteCommand(const char* args)
         return false;
     }
 
-    time_t mutetime = time(NULL) + notspeaktime*60;
+    time_t mutetime = notspeaktime > 0 ? time(NULL) + notspeaktime * 60 : notspeaktime;
 
     if (chr)
         chr->GetSession()->m_muteTime = mutetime;
 
-    LoginDatabase.PExecute("UPDATE account SET mutetime = " UI64FMTD " WHERE id = '%u'", uint64(mutetime), account_id);
+    LoginDatabase.PExecute("UPDATE account SET mutetime = " SI64FMTD " WHERE id = '%u'", (notspeaktime > 0 ? uint64(mutetime) : notspeaktime), account_id);
 
     if (chr)
-        ChatHandler(chr).PSendSysMessage(LANG_YOUR_CHAT_DISABLED, notspeaktime, mutereasonstr.c_str());
+    {
+        if (notspeaktime > 0)
+            ChatHandler(chr).PSendSysMessage(LANG_YOUR_CHAT_DISABLED, notspeaktime, mutereasonstr.c_str());
+        else
+        {
+            ChatHandler(chr).SendSysMessage("You have permanently muted from public channels and your speech is now limited to Guild, Group, and Raid.");
+
+            if (!chr->HasAura(1852, 0))
+                chr->CastSpell(chr, 1852, true);
+        }
+    }
 
     PSendSysMessage(LANG_YOU_DISABLE_CHAT, cname.c_str(), notspeaktime, mutereasonstr.c_str());
 
@@ -200,7 +211,12 @@ bool ChatHandler::HandleUnmuteCommand(const char* args)
     LoginDatabase.PExecute("UPDATE account SET mutetime = '0' WHERE id = '%u'", account_id);
 
     if (chr)
+    {
         ChatHandler(chr).PSendSysMessage(LANG_YOUR_CHAT_ENABLED);
+
+        if (chr->HasAura(1852, 0)) // player has "Silenced" GM spell on
+            chr->RemoveAurasDueToSpell(1852);
+    }
 
     PSendSysMessage(LANG_YOU_ENABLE_CHAT, cname.c_str());
     return true;
@@ -394,7 +410,7 @@ bool ChatHandler::HandleGoCreatureCommand(const char* args)
         {
             std::string name = pParam1;
             WorldDatabase.EscapeString(name);
-            whereClause << ", creature_template WHERE creature.id = creature_template.entry AND creature_template.name " _LIKE_" '" << name << "'";
+            whereClause << ", creature_template WHERE creature.id = creature_template.entry AND creature_template.name "_LIKE_" '" << name << "'";
         }
         else
         {
@@ -515,7 +531,7 @@ bool ChatHandler::HandleTargetObjectCommand(const char* args)
             WorldDatabase.EscapeString(name);
             result = WorldDatabase.PQuery(
                 "SELECT guid, id, position_x, position_y, position_z, orientation, map, (POW(position_x - %f, 2) + POW(position_y - %f, 2) + POW(position_z - %f, 2)) AS order_ "
-                "FROM gameobject, gameobject_template WHERE gameobject_template.entry = gameobject.id AND map = %i AND name " _LIKE_" " _CONCAT3_("'%%'", "'%s'", "'%%'")" ORDER BY order_ ASC LIMIT 1",
+                "FROM gameobject, gameobject_template WHERE gameobject_template.entry = gameobject.id AND map = %i AND name "_LIKE_" "_CONCAT3_("'%%'", "'%s'", "'%%'")" ORDER BY order_ ASC LIMIT 1",
                 pl->GetPositionX(), pl->GetPositionY(), pl->GetPositionZ(), pl->GetMapId(), name.c_str());
         }
     }
@@ -808,12 +824,11 @@ bool ChatHandler::HandleGameObjectCommand(const char* args)
     float z = float(chr->GetPositionZ());
     float o = float(chr->GetOrientation());
     Map *map = chr->GetMap();
-    uint32 phaseMask = chr->GetPhaseMask();
 
     GameObject* pGameObj = new GameObject;
     uint32 db_lowGUID = sObjectMgr->GenerateLowGuid(HIGHGUID_GAMEOBJECT);
 
-    if (!pGameObj->Create(db_lowGUID, gInfo->id, map, phaseMask, x, y, z, o, 0.0f, 0.0f, 0.0f, 0.0f, 0, GO_STATE_READY))
+    if (!pGameObj->Create(db_lowGUID, gInfo->id, map, x, y, z, o, 0.0f, 0.0f, 0.0f, 0.0f, 0, GO_STATE_READY))
     {
         delete pGameObj;
         return false;
@@ -827,7 +842,7 @@ bool ChatHandler::HandleGameObjectCommand(const char* args)
     }
 
     // fill the gameobject data and save to the db
-    pGameObj->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), PHASEMASK_NORMAL);
+    pGameObj->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()));
 
     // this will generate a new guid if the object is in an instance
     if (!pGameObj->LoadFromDB(db_lowGUID, map))
@@ -836,7 +851,7 @@ bool ChatHandler::HandleGameObjectCommand(const char* args)
         return false;
     }
 
-    sLog->outDebug(GetTrinityString(LANG_GAMEOBJECT_CURRENT), gInfo->name, db_lowGUID, x, y, z, o);
+    sLog->outDebug(GetSkyFireString(LANG_GAMEOBJECT_CURRENT), gInfo->name, db_lowGUID, x, y, z, o);
 
     map->Add(pGameObj);
 
@@ -899,7 +914,7 @@ bool ChatHandler::HandleModifyRepCommand(const char * args)
         amount = -42000;
         for (; r < MAX_REPUTATION_RANK; ++r)
         {
-            std::string rank = GetTrinityString(ReputationRankStrIndex[r]);
+            std::string rank = GetSkyFireString(ReputationRankStrIndex[r]);
             if (rank.empty())
                 continue;
 
@@ -979,16 +994,15 @@ bool ChatHandler::HandleNpcAddCommand(const char* args)
     float z = chr->GetPositionZ();
     float o = chr->GetOrientation();
     Map *map = chr->GetMap();
-    uint32 phaseMask = chr->GetPhaseMask();
 
     Creature* creature = new Creature;
-    if (!creature->Create(sObjectMgr->GenerateLowGuid(HIGHGUID_UNIT), map, phaseMask, id, (uint32)teamval, x, y, z, o))
+    if (!creature->Create(sObjectMgr->GenerateLowGuid(HIGHGUID_UNIT), map, id, (uint32)teamval, x, y, z, o))
     {
         delete creature;
         return false;
     }
 
-    creature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseMask);
+    creature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()));
 
     uint32 db_guid = creature->GetDBTableGUIDLow();
 
@@ -2029,11 +2043,11 @@ bool ChatHandler::HandlePInfoCommand(const char* args)
         Class = fields[5].GetUInt8();
     }
 
-    std::string username = GetTrinityString(LANG_ERROR);
-    std::string email = GetTrinityString(LANG_ERROR);
-    std::string last_ip = GetTrinityString(LANG_ERROR);
+    std::string username = GetSkyFireString(LANG_ERROR);
+    std::string email = GetSkyFireString(LANG_ERROR);
+    std::string last_ip = GetSkyFireString(LANG_ERROR);
     uint32 security = 0;
-    std::string last_login = GetTrinityString(LANG_ERROR);
+    std::string last_login = GetSkyFireString(LANG_ERROR);
 
     QueryResult_AutoPtr result = LoginDatabase.PQuery("SELECT a.username, aa.gmlevel, a.email, a.last_ip, a.last_login "
                                                       "FROM account a "
@@ -2062,7 +2076,7 @@ bool ChatHandler::HandlePInfoCommand(const char* args)
         }
     }
 
-    PSendSysMessage(LANG_PINFO_ACCOUNT, (target?"":GetTrinityString(LANG_OFFLINE)), NameLink(name).c_str(), GUID_LOPART(targetGUID), username.c_str(), accId, email.c_str(), security, last_ip.c_str(), last_login.c_str(), latency);
+    PSendSysMessage(LANG_PINFO_ACCOUNT, (target?"":GetSkyFireString(LANG_OFFLINE)), NameLink(name).c_str(), GUID_LOPART(targetGUID), username.c_str(), accId, email.c_str(), security, last_ip.c_str(), last_login.c_str(), latency);
 
     std::string race_s, Class_s;
     switch (race)
@@ -2116,26 +2130,61 @@ bool ChatHandler::HandlePInfoCommand(const char* args)
             else
                 FactionName = "#Not found#";
             ReputationRank rank = target->GetReputationRank(factionEntry);
-            std::string rankName = GetTrinityString(ReputationRankStrIndex[rank]);
+            std::string rankName = GetSkyFireString(ReputationRankStrIndex[rank]);
             std::ostringstream ss;
             ss << itr->second.ID << ": |cffffffff|Hfaction:" << itr->second.ID << "|h[" << FactionName << "]|h|r " << rankName << "|h|r (" << target->GetReputation(factionEntry) << ")";
 
             if (itr->second.Flags & FACTION_FLAG_VISIBLE)
-                ss << GetTrinityString(LANG_FACTION_VISIBLE);
+                ss << GetSkyFireString(LANG_FACTION_VISIBLE);
             if (itr->second.Flags & FACTION_FLAG_AT_WAR)
-                ss << GetTrinityString(LANG_FACTION_ATWAR);
+                ss << GetSkyFireString(LANG_FACTION_ATWAR);
             if (itr->second.Flags & FACTION_FLAG_PEACE_FORCED)
-                ss << GetTrinityString(LANG_FACTION_PEACE_FORCED);
+                ss << GetSkyFireString(LANG_FACTION_PEACE_FORCED);
             if (itr->second.Flags & FACTION_FLAG_HIDDEN)
-                ss << GetTrinityString(LANG_FACTION_HIDDEN);
+                ss << GetSkyFireString(LANG_FACTION_HIDDEN);
             if (itr->second.Flags & FACTION_FLAG_INVISIBLE_FORCED)
-                ss << GetTrinityString(LANG_FACTION_INVISIBLE_FORCED);
+                ss << GetSkyFireString(LANG_FACTION_INVISIBLE_FORCED);
             if (itr->second.Flags & FACTION_FLAG_INACTIVE)
-                ss << GetTrinityString(LANG_FACTION_INACTIVE);
+                ss << GetSkyFireString(LANG_FACTION_INACTIVE);
 
             SendSysMessage(ss.str().c_str());
         }
     }
+
+    // Hack Reports
+    if (!target)        // Offline
+    {
+        QueryResult_AutoPtr results = CharacterDatabase.PQuery("SELECT total_reports FROM players_reports_status WHERE guid = '%u'", GUID_LOPART(targetGUID));
+
+        if (results)
+        {
+            Field *hack_reports = results->Fetch();
+
+            std::string str;
+            std::ostringstream ss;
+            uint32 amount;
+
+            amount = hack_reports[0].GetUInt32();
+
+            ss << amount;
+            str = "Total AntiCheat Reports (current login): " + ss.str();
+
+            SendSysMessage(str.c_str());
+        }
+    }
+    else
+    {
+        uint32 amount = sAnticheatMgr->GetTotalReports(targetGUID);
+        std::ostringstream ss;
+        std::string str;
+
+        ss << amount;
+        str = "Total AntiCheat Reports (since last login): " + ss.str();
+
+        SendSysMessage(str.c_str());
+    }
+
+
     return true;
 }
 
@@ -2668,14 +2717,14 @@ bool ChatHandler::HandleWpModifyCommand(const char* args)
                 wpCreature->AddObjectToRemoveList();
                 // re-create
                 Creature* wpCreature2 = new Creature;
-                if (!wpCreature2->Create(sObjectMgr->GenerateLowGuid(HIGHGUID_UNIT), map, chr->GetPhaseMask(), VISUAL_WAYPOINT, 0, chr->GetPositionX(), chr->GetPositionY(), chr->GetPositionZ(), chr->GetOrientation()))
+                if (!wpCreature2->Create(sObjectMgr->GenerateLowGuid(HIGHGUID_UNIT), map, VISUAL_WAYPOINT, 0, chr->GetPositionX(), chr->GetPositionY(), chr->GetPositionZ(), chr->GetOrientation()))
                 {
                     PSendSysMessage(LANG_WAYPOINT_VP_NOTCREATED, VISUAL_WAYPOINT);
                     delete wpCreature2;
                     return false;
                 }
 
-                wpCreature2->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), chr->GetPhaseMask());
+                wpCreature2->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()));
                 // To call _LoadGoods(); _LoadQuests(); CreateTrainerSpells();
                 wpCreature2->LoadFromDB(wpCreature2->GetDBTableGUIDLow(), map);
                 map->Add(wpCreature2);
@@ -2871,7 +2920,7 @@ bool ChatHandler::HandleWpShowCommand(const char* args)
             float o = chr->GetOrientation();
 
             Creature* wpCreature = new Creature;
-            if (!wpCreature->Create(sObjectMgr->GenerateLowGuid(HIGHGUID_UNIT), map, chr->GetPhaseMask(), id, 0, x, y, z, o))
+            if (!wpCreature->Create(sObjectMgr->GenerateLowGuid(HIGHGUID_UNIT), map, id, 0, x, y, z, o))
             {
                 PSendSysMessage(LANG_WAYPOINT_VP_NOTCREATED, id);
                 delete wpCreature;
@@ -2882,14 +2931,14 @@ bool ChatHandler::HandleWpShowCommand(const char* args)
             // set "wpguid" column to the visual waypoint
             WorldDatabase.PExecuteLog("UPDATE waypoint_data SET wpguid = '%u' WHERE id = '%u' and point = '%u'", wpCreature->GetGUIDLow(), pathid, point);
 
-            wpCreature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), chr->GetPhaseMask());
+            wpCreature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()));
             wpCreature->LoadFromDB(wpCreature->GetDBTableGUIDLow(), map);
             map->Add(wpCreature);
 
             if (target)
             {
                 wpCreature->SetDisplayId(target->GetDisplayId());
-                wpCreature->SetFloatValue(OBJECT_FIELD_SCALE_X, 0.5);
+                wpCreature->SetObjectScale(0.5);
             }
         }
         while (result->NextRow());
@@ -2919,24 +2968,23 @@ bool ChatHandler::HandleWpShowCommand(const char* args)
         Player *chr = m_session->GetPlayer();
         float o = chr->GetOrientation();
         Map *map = chr->GetMap();
-        uint32 phaseMask = chr->GetPhaseMask();
 
         Creature* creature = new Creature;
-        if (!creature->Create(sObjectMgr->GenerateLowGuid(HIGHGUID_UNIT), map, phaseMask, id, 0, x, y, z, o))
+        if (!creature->Create(sObjectMgr->GenerateLowGuid(HIGHGUID_UNIT), map, id, 0, x, y, z, o))
         {
             PSendSysMessage(LANG_WAYPOINT_VP_NOTCREATED, id);
             delete creature;
             return false;
         }
 
-        creature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseMask);
+        creature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()));
         creature->LoadFromDB(creature->GetDBTableGUIDLow(), map);
         map->Add(creature);
 
         if (target)
         {
             creature->SetDisplayId(target->GetDisplayId());
-            creature->SetFloatValue(OBJECT_FIELD_SCALE_X, 0.5);
+            creature->SetObjectScale(0.5);
         }
 
         return true;
@@ -2968,24 +3016,23 @@ bool ChatHandler::HandleWpShowCommand(const char* args)
         Player *chr = m_session->GetPlayer();
         float o = chr->GetOrientation();
         Map *map = chr->GetMap();
-        uint32 phaseMask = chr->GetPhaseMask();
 
         Creature* creature = new Creature;
-        if (!creature->Create(sObjectMgr->GenerateLowGuid(HIGHGUID_UNIT), map, phaseMask, id, 0, x, y, z, o))
+        if (!creature->Create(sObjectMgr->GenerateLowGuid(HIGHGUID_UNIT), map, id, 0, x, y, z, o))
         {
             PSendSysMessage(LANG_WAYPOINT_NOTCREATED, id);
             delete creature;
             return false;
         }
 
-        creature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), phaseMask);
+        creature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()));
         creature->LoadFromDB(creature->GetDBTableGUIDLow(), map);
         map->Add(creature);
 
         if (target)
         {
             creature->SetDisplayId(target->GetDisplayId());
-            creature->SetFloatValue(OBJECT_FIELD_SCALE_X, 0.5);
+            creature->SetObjectScale(0.5);
         }
 
         return true;
@@ -3214,25 +3261,25 @@ bool ChatHandler::HandleLookupFactionCommand(const char* args)
                 if (repState)                               // and then target != NULL also
                 {
                     ReputationRank rank = target->GetReputationRank(factionEntry);
-                    std::string rankName = GetTrinityString(ReputationRankStrIndex[rank]);
+                    std::string rankName = GetSkyFireString(ReputationRankStrIndex[rank]);
 
                     ss << " " << rankName << "|h|r (" << target->GetReputation(factionEntry) << ")";
 
                     if (repState->Flags & FACTION_FLAG_VISIBLE)
-                        ss << GetTrinityString(LANG_FACTION_VISIBLE);
+                        ss << GetSkyFireString(LANG_FACTION_VISIBLE);
                     if (repState->Flags & FACTION_FLAG_AT_WAR)
-                        ss << GetTrinityString(LANG_FACTION_ATWAR);
+                        ss << GetSkyFireString(LANG_FACTION_ATWAR);
                     if (repState->Flags & FACTION_FLAG_PEACE_FORCED)
-                        ss << GetTrinityString(LANG_FACTION_PEACE_FORCED);
+                        ss << GetSkyFireString(LANG_FACTION_PEACE_FORCED);
                     if (repState->Flags & FACTION_FLAG_HIDDEN)
-                        ss << GetTrinityString(LANG_FACTION_HIDDEN);
+                        ss << GetSkyFireString(LANG_FACTION_HIDDEN);
                     if (repState->Flags & FACTION_FLAG_INVISIBLE_FORCED)
-                        ss << GetTrinityString(LANG_FACTION_INVISIBLE_FORCED);
+                        ss << GetSkyFireString(LANG_FACTION_INVISIBLE_FORCED);
                     if (repState->Flags & FACTION_FLAG_INACTIVE)
-                        ss << GetTrinityString(LANG_FACTION_INACTIVE);
+                        ss << GetSkyFireString(LANG_FACTION_INACTIVE);
                 }
                 else
-                    ss << GetTrinityString(LANG_FACTION_NOREPUTATION);
+                    ss << GetSkyFireString(LANG_FACTION_NOREPUTATION);
 
                 SendSysMessage(ss.str().c_str());
                 counter++;
@@ -3343,7 +3390,7 @@ bool ChatHandler::HandleLookupEventCommand(const char* args)
 
         if (Utf8FitTo(descr, wnamepart))
         {
-            char const* active = activeEvents.find(id) != activeEvents.end() ? GetTrinityString(LANG_ACTIVE) : "";
+            char const* active = activeEvents.find(id) != activeEvents.end() ? GetSkyFireString(LANG_ACTIVE) : "";
 
             if (m_session)
                 PSendSysMessage(LANG_EVENT_ENTRY_LIST_CHAT, id, id, eventData.description.c_str(), active);
@@ -3368,7 +3415,7 @@ bool ChatHandler::HandleEventActiveListCommand(const char* /*args*/)
     GameEventMgr::GameEventDataMap const& events = sGameEventMgr->GetEventMap();
     GameEventMgr::ActiveEvents const& activeEvents = sGameEventMgr->GetActiveEventList();
 
-    char const* active = GetTrinityString(LANG_ACTIVE);
+    char const* active = GetSkyFireString(LANG_ACTIVE);
 
     for (GameEventMgr::ActiveEvents::const_iterator itr = activeEvents.begin(); itr != activeEvents.end(); ++itr)
     {
@@ -3420,7 +3467,7 @@ bool ChatHandler::HandleEventInfoCommand(const char* args)
 
     GameEventMgr::ActiveEvents const& activeEvents = sGameEventMgr->GetActiveEventList();
     bool active = activeEvents.find(event_id) != activeEvents.end();
-    char const* activeStr = active ? GetTrinityString(LANG_ACTIVE) : "";
+    char const* activeStr = active ? GetSkyFireString(LANG_ACTIVE) : "";
 
     std::string startTimeStr = TimeToTimestampStr(eventData.start);
     std::string endTimeStr = TimeToTimestampStr(eventData.end);
@@ -3829,7 +3876,7 @@ bool ChatHandler::HandleCreatePetCommand(const char* /*args*/)
 
      pet->GetCharmInfo()->SetPetNumber(sObjectMgr->GeneratePetNumber(), true);
      // this enables pet details window (Shift+P)
-     pet->InitPetCreateSpells(false);
+     pet->InitPetCreateSpells();
      pet->SetHealth(pet->GetMaxHealth());
 
      pet->GetMap()->Add(pet->ToCreature());
@@ -4156,10 +4203,10 @@ bool ChatHandler::HandleLookupTitleCommand(const char* args)
 
             if (loc < TOTAL_LOCALES)
             {
-                char const* knownStr = target && target->HasTitle(titleInfo) ? GetTrinityString(LANG_KNOWN) : "";
+                char const* knownStr = target && target->HasTitle(titleInfo) ? GetSkyFireString(LANG_KNOWN) : "";
 
                 char const* activeStr = target && target->GetUInt32Value(PLAYER_CHOSEN_TITLE) == titleInfo->bit_index
-                    ? GetTrinityString(LANG_ACTIVE)
+                    ? GetSkyFireString(LANG_ACTIVE)
                     : "";
 
                 char titleNameStr[80];
@@ -4321,7 +4368,7 @@ bool ChatHandler::HandleCharacterTitlesCommand(const char* args)
 
     LocaleConstant loc = m_session->GetSessionDbcLocale();
     char const* targetName = target->GetName();
-    char const* knownStr = GetTrinityString(LANG_KNOWN);
+    char const* knownStr = GetSkyFireString(LANG_KNOWN);
 
     // Search in CharTitles.dbc
     for (uint32 id = 0; id < sCharTitlesStore.GetNumRows(); id++)
@@ -4334,7 +4381,7 @@ bool ChatHandler::HandleCharacterTitlesCommand(const char* args)
                 continue;
 
             char const* activeStr = target && target->GetUInt32Value(PLAYER_CHOSEN_TITLE) == titleInfo->bit_index
-                ? GetTrinityString(LANG_ACTIVE)
+                ? GetSkyFireString(LANG_ACTIVE)
                 : "";
 
             char titleNameStr[80];
@@ -4514,34 +4561,3 @@ bool ChatHandler::HandleTempEventTeleportCommand(const char* args)
     sTempEventMgr->TeleportPlayersToEvent(plr);
     return true;
 }
-
-bool ChatHandler::HandleModifyPhaseCommand(const char* args)
-{
-    if (!*args)
-        return false;
-
-    uint32 phase = (uint32)atof((char*)args);
-
-    Player *target = getSelectedPlayer();
-    if (target == NULL)
-    {
-        SendSysMessage(LANG_NO_CHAR_SELECTED);
-        SetSentErrorMessage(true);
-        return false;
-    }
-
-    if (target->isInFlight())
-    {
-        PSendSysMessage(LANG_CHAR_IN_FLIGHT, target->GetName());
-        SetSentErrorMessage(true);
-        return false;
-    }
-
-    PSendSysMessage(LANG_COMMAND_ME_CHANGEDPHASE, target->GetName(), phase);
-    if (needReportToTarget(target))
-        ChatHandler(target).PSendSysMessage(LANG_COMMAND_YOU_CHANGEDPHASE, GetName(), phase);
-
-    target->SetPhaseMask(phase, true);
-    return true;
-}
-

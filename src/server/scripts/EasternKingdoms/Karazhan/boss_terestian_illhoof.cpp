@@ -1,4 +1,4 @@
-/* * Copyright (C) 2010-2012 Project SkyFire <http://www.projectskyfire.org/>
+/* Copyright (C) 2010-2012 Project SkyFire <http://www.projectskyfire.org/>
  * Copyright (C) 2010-2012 Oregon <http://www.oregoncore.com/>
  * Copyright (C) 2006-2008 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  * Copyright (C) 2008-2012 TrinityCore <http://www.trinitycore.org/>
@@ -88,9 +88,6 @@ float PortalLocations[2][2] =
     { -11252.0205, -1703.97009 },
     { -11241.5742, -1717.40063 },
 };
-
-// Set to true to nerf this encounter
-bool applyNerf = true;
 
 struct mob_demon_chainAI : public ScriptedAI
 {
@@ -213,18 +210,20 @@ struct boss_terestianAI : public ScriptedAI
 
         Initialize();
 
-        instance->SetData(TYPE_TERESTIAN, NOT_STARTED);
+        if (instance)
+            instance->SetData(TYPE_TERESTIAN, NOT_STARTED);
 
         me->RemoveAurasDueToSpell(SPELL_BROKEN_PACT);
     }
 
     void EnterEvadeMode()
     {
-        if (Creature* Kilrek = Unit::GetUnit((*me), instance->GetData64(DATA_KILREK))->ToCreature())
-        {
-            if (Kilrek->isAlive())
-                Kilrek->ForcedDespawn();
-        }
+        if (instance)
+            if (Creature* Kilrek = Unit::GetUnit((*me), instance->GetData64(DATA_KILREK))->ToCreature())
+            {
+                if (Kilrek->isAlive())
+                    Kilrek->ForcedDespawn();
+            }
 
         ScriptedAI::EnterEvadeMode();
     }
@@ -269,7 +268,8 @@ struct boss_terestianAI : public ScriptedAI
 
         DoScriptText(SAY_DEATH, me);
 
-        instance->SetData(TYPE_TERESTIAN, DONE);
+        if (instance)
+            instance->SetData(TYPE_TERESTIAN, DONE);
     }
 
     void UpdateAI(const uint32 diff)
@@ -291,10 +291,7 @@ struct boss_terestianAI : public ScriptedAI
 
         if (SacrificeTimer <= diff)
         {
-            // Sacrifice can no longer target the Tank in nerfed version
-            uint8 targetPos = applyNerf ? 1 : 0;
-
-            Unit *pTarget = SelectTarget(SELECT_TARGET_RANDOM, targetPos, GetSpellMaxRange(SPELL_SACRIFICE), true);
+            Unit *pTarget = SelectTarget(SELECT_TARGET_RANDOM, 1, GetSpellMaxRange(SPELL_SACRIFICE), true);
             if (pTarget && pTarget->isAlive())
             {
                 DoCast(pTarget, SPELL_SACRIFICE, true);
@@ -410,12 +407,6 @@ struct mob_fiendish_impAI : public ScriptedAI
 
     void Initialize()
     {
-        if (applyNerf)
-        {
-            me->SetHealth(me->GetHealth() - 500);
-            me->SetMaxHealth(me->GetMaxHealth() - 500);
-        }
-
         FireboltTimer = 2000;
     }
 
@@ -430,9 +421,13 @@ struct mob_fiendish_impAI : public ScriptedAI
 
     void JustDied(Unit * /*killer*/)
     {
-        Creature* Terestian = Unit::GetUnit((*me), instance->GetData64(DATA_TERESTIAN))->ToCreature();
-        if (Terestian && Terestian->isAlive())
-            CAST_AI(boss_terestianAI, Terestian->AI())->ImpCount--;
+        if (instance)
+        {
+            Creature* Terestian = Unit::GetUnit((*me), instance->GetData64(DATA_TERESTIAN))->ToCreature();
+
+            if (Terestian && Terestian->isAlive())
+                CAST_AI(boss_terestianAI, Terestian->AI())->ImpCount--;
+        }
     }
 
     void EnterCombat(Unit * /*who*/) {}
@@ -472,13 +467,17 @@ struct mob_kilrekAI : public ScriptedAI
 
     void JustDied(Unit* /*Killer*/)
     {
-        Creature* Terestian = Unit::GetUnit((*me), instance->GetData64(DATA_TERESTIAN))->ToCreature();
-        if (Terestian && Terestian->isAlive())
+        if (instance)
         {
-            DoScriptText(EMOTE_DEATH, me);
-            CAST_AI(boss_terestianAI, Terestian->AI())->SummonKilrekTimer = applyNerf ? 45000 : 30000;
-            DoCast(Terestian, SPELL_BROKEN_PACT, true);
-            me->ForcedDespawn(15000);
+            Creature* Terestian = Unit::GetUnit((*me), instance->GetData64(DATA_TERESTIAN))->ToCreature();
+
+            if (Terestian && Terestian->isAlive())
+            {
+                DoScriptText(EMOTE_DEATH, me);
+                CAST_AI(boss_terestianAI, Terestian->AI())->SummonKilrekTimer = 45000;
+                DoCast(Terestian, SPELL_BROKEN_PACT, true);
+                me->ForcedDespawn(15000);
+            }
         }
     }
 

@@ -19,7 +19,7 @@
 #ifndef _MOVE_MAP_H
 #define _MOVE_MAP_H
 
-#include "Common.h"
+#include "UnorderedMap.h"
 
 #include "DetourAlloc.h"
 #include "DetourNavMesh.h"
@@ -39,8 +39,8 @@ inline void dtCustomFree(void* ptr)
 //  move map related classes
 namespace MMAP
 {
-    typedef std::unordered_map<uint32, dtTileRef> MMapTileSet;
-    typedef std::unordered_map<uint32, dtNavMeshQuery*> NavMeshQuerySet;
+    typedef UNORDERED_MAP<uint32, dtTileRef> MMapTileSet;
+    typedef UNORDERED_MAP<uint32, dtNavMeshQuery*> NavMeshQuerySet;
 
     // dummy struct to hold map's mmap data
     struct MMapData
@@ -63,7 +63,7 @@ namespace MMAP
     };
 
 
-    typedef std::unordered_map<uint32, MMapData*> MMapDataSet;
+    typedef UNORDERED_MAP<uint32, MMapData*> MMapDataSet;
 
     // singelton class
     // holds all all access to mmap loading unloading and meshes
@@ -100,7 +100,11 @@ namespace MMAP
         public:
             static MMapManager* createOrGetMMapManager();
             static void clear();
-            static bool IsPathfindingEnabled();
+            //static void preventPathfindingOnMaps(const char* ignoreMapIds);
+            //MMAP-Changes
+            static void implementPathFindingOnMaps(const char* implementMapIds);
+            //MMAP-Changes
+            static bool IsPathfindingEnabled(uint32 mapId);
     };
 }
 

@@ -304,10 +304,6 @@ bool ScriptedAI::CanCast(Unit* pTarget, SpellEntry const* pSpell, bool bTriggere
     if (!bTriggered && me->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SILENCED))
         return false;
 
-    // Check for cooldown
-    if (!bTriggered && me->HasSpellCooldown(pSpell->Id))
-        return false;
-
     //Check for power
     if (!bTriggered && me->GetPower((Powers)pSpell->powerType) < pSpell->manaCost)
         return false;
@@ -481,7 +477,7 @@ Unit* ScriptedAI::DoSelectLowestHpFriendly(float fRange, uint32 uiMinHPDiff)
 {
     Unit* pUnit = NULL;
     Trinity::MostHPMissingInRange u_check(me, fRange, uiMinHPDiff);
-    Trinity::UnitLastSearcher<Trinity::MostHPMissingInRange> searcher(me, pUnit, u_check);
+    Trinity::UnitLastSearcher<Trinity::MostHPMissingInRange> searcher(pUnit, u_check);
     me->VisitNearbyObject(fRange, searcher);
 
     return pUnit;
@@ -491,7 +487,7 @@ std::list<Creature*> ScriptedAI::DoFindFriendlyCC(float fRange)
 {
     std::list<Creature*> pList;
     Trinity::FriendlyCCedInRange u_check(me, fRange);
-    Trinity::CreatureListSearcher<Trinity::FriendlyCCedInRange> searcher(me, pList, u_check);
+    Trinity::CreatureListSearcher<Trinity::FriendlyCCedInRange> searcher(pList, u_check);
     me->VisitNearbyObject(fRange, searcher);
     return pList;
 }
@@ -500,7 +496,7 @@ std::list<Creature*> ScriptedAI::DoFindFriendlyMissingBuff(float fRange, uint32 
 {
     std::list<Creature*> pList;
     Trinity::FriendlyMissingBuffInRange u_check(me, fRange, uiSpellid);
-    Trinity::CreatureListSearcher<Trinity::FriendlyMissingBuffInRange> searcher(me, pList, u_check);
+    Trinity::CreatureListSearcher<Trinity::FriendlyMissingBuffInRange> searcher(pList, u_check);
     me->VisitNearbyObject(fRange, searcher);
     return pList;
 }
@@ -515,7 +511,7 @@ Player* ScriptedAI::GetPlayerAtMinimumRange(float fMinimumRange)
     cell.SetNoCreate();
 
     Trinity::PlayerAtMinimumRangeAway check(me, fMinimumRange);
-    Trinity::PlayerSearcher<Trinity::PlayerAtMinimumRangeAway> searcher(me, player, check);
+    Trinity::PlayerSearcher<Trinity::PlayerAtMinimumRangeAway> searcher(player, check);
     TypeContainerVisitor<Trinity::PlayerSearcher<Trinity::PlayerAtMinimumRangeAway>, GridTypeMapContainer> visitor(searcher);
 
     cell.Visit(pair, visitor, *(me->GetMap()));

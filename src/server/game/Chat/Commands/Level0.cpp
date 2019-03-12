@@ -99,7 +99,12 @@ bool ChatHandler::HandleServerInfoCommand(const char* /*args*/)
     std::string str = secsToTimeString(sWorld->GetUptime());
     uint32 updateTime = sWorld->GetUpdateTime();
 
-    std::string nextFlushStr = secsToTimeString(sBattleGroundMgr->GetNextArenaDistributionTime() - time(NULL));
+    int64 timeTillFlush = sBattleGroundMgr->GetNextArenaDistributionTime() - time(NULL);
+    std::string nextFlushStr = "";
+    if (timeTillFlush >= 0)
+        nextFlushStr = secsToTimeString(sBattleGroundMgr->GetNextArenaDistributionTime() - time(NULL));
+    else
+        nextFlushStr = "Imminent Flushing within 10 minutes.";
 
     PSendSysMessage(_FULLVERSION);
     //if (m_session)

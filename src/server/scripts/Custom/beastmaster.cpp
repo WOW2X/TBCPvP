@@ -100,21 +100,21 @@ bool GossipSelect_beastmaster(Player* player, Creature* creature, uint32 sender,
     switch (action)
     {
         case 100:
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_BAT,             GOSSIP_SENDER_MAIN, 1001);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_BOAR,            GOSSIP_SENDER_MAIN, 1003);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_BIRD,            GOSSIP_SENDER_MAIN, 1002);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_CAT,             GOSSIP_SENDER_MAIN, 1004);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_DRAGONHAWK,      GOSSIP_SENDER_MAIN, 1005);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_GORILLA,         GOSSIP_SENDER_MAIN, 1006);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_OWL,             GOSSIP_SENDER_MAIN, 1007);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_RAPTOR,          GOSSIP_SENDER_MAIN, 1008);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_RAVAGER,         GOSSIP_SENDER_MAIN, 1009);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_SCORPID,         GOSSIP_SENDER_MAIN, 1010);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_SERPENT,         GOSSIP_SENDER_MAIN, 1011);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_TURTLE,          GOSSIP_SENDER_MAIN, 1012);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_WARPCHASER,      GOSSIP_SENDER_MAIN, 1013);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_W_SERPENT,       GOSSIP_SENDER_MAIN, 1014);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_WOLF,            GOSSIP_SENDER_MAIN, 1015);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_BAT,             GOSSIP_SENDER_MAIN, 5001);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_BOAR,            GOSSIP_SENDER_MAIN, 5003);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_BIRD,            GOSSIP_SENDER_MAIN, 5002);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_CAT,             GOSSIP_SENDER_MAIN, 5004);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_DRAGONHAWK,      GOSSIP_SENDER_MAIN, 5005);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_GORILLA,         GOSSIP_SENDER_MAIN, 5006);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_OWL,             GOSSIP_SENDER_MAIN, 5007);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_RAPTOR,          GOSSIP_SENDER_MAIN, 5008);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_RAVAGER,         GOSSIP_SENDER_MAIN, 5009);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_SCORPID,         GOSSIP_SENDER_MAIN, 5010);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_SERPENT,         GOSSIP_SENDER_MAIN, 5011);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_TURTLE,          GOSSIP_SENDER_MAIN, 5012);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_WARPCHASER,      GOSSIP_SENDER_MAIN, 5013);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_W_SERPENT,       GOSSIP_SENDER_MAIN, 5014);
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_INTERACT_2, GOSSIP_TEXT_WOLF,            GOSSIP_SENDER_MAIN, 5015);
 
             // learn players all training spells:
             player->learnSpell(27348); // bite
@@ -146,63 +146,63 @@ bool GossipSelect_beastmaster(Player* player, Creature* creature, uint32 sender,
 
             player->PlayerTalkClass->SendGossipMenu(70, creature->GetGUID());
             break;
-        case 1001:
+        case 5001:
             CreatePet(player, creature, PET_BAT);
             player->CLOSE_GOSSIP_MENU();
             break;
-        case 1002:
+        case 5002:
             CreatePet(player, creature, PET_BIRD);
             player->CLOSE_GOSSIP_MENU();
             break;
-        case 1003:
+        case 5003:
             CreatePet(player, creature, PET_BOAR);
             player->CLOSE_GOSSIP_MENU();
             break;
-        case 1004:
+        case 5004:
             CreatePet(player, creature, PET_CAT);
             player->CLOSE_GOSSIP_MENU();
             break;
-        case 1005:
+        case 5005:
             CreatePet(player, creature, PET_DRAGON_HAWK);
             player->CLOSE_GOSSIP_MENU();
             break;
-        case 1006:
+        case 5006:
             CreatePet(player, creature, PET_GORILLA);
             player->CLOSE_GOSSIP_MENU();
             break;
-        case 1007:
+        case 5007:
             CreatePet(player, creature, PET_OWL);
             player->CLOSE_GOSSIP_MENU();
             break;
-        case 1008:
+        case 5008:
             CreatePet(player, creature, PET_RAPTOR);
             player->CLOSE_GOSSIP_MENU();
             break;
-        case 1009:
+        case 5009:
             CreatePet(player, creature, PET_RAVAGER);
             player->CLOSE_GOSSIP_MENU();
             break;
-        case 1010:
+        case 5010:
             CreatePet(player, creature, PET_SCORPID);
             player->CLOSE_GOSSIP_MENU();
             break;
-        case 1011:
+        case 5011:
             CreatePet(player, creature, PET_SERPENT);
             player->CLOSE_GOSSIP_MENU();
             break;
-        case 1012:
+        case 5012:
             CreatePet(player, creature, PET_TURTLE);
             player->CLOSE_GOSSIP_MENU();
             break;
-        case 1013:
+        case 5013:
             CreatePet(player, creature, PET_WARP_CHASER);
             player->CLOSE_GOSSIP_MENU();
             break;
-        case 1014:
+        case 5014:
             CreatePet(player, creature, PET_WIND_SERPENT);
             player->CLOSE_GOSSIP_MENU();
             break;
-        case 1015:
+        case 5015:
             CreatePet(player, creature, PET_WOLF);
             player->CLOSE_GOSSIP_MENU();
             break;

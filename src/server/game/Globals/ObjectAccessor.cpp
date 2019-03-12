@@ -142,9 +142,19 @@ Pet* ObjectAccessor::FindPet(uint64 guid)
     return GetObjectInWorld(guid, (Pet*)NULL);
 }
 
-Player* ObjectAccessor::FindPlayer(uint64 guid)
+Player* ObjectAccessor::FindPlayer(uint64 guid, bool force)
 {
-    return GetObjectInWorld(guid, (Player*)NULL);
+    if (!force)
+        return GetObjectInWorld(guid, (Player*)NULL);
+
+    ACE_GUARD_RETURN(LockType, g, *HashMapHolder<Player>::GetLock(), NULL);
+
+    HashMapHolder<Player>::MapType& m = HashMapHolder<Player>::GetContainer();
+    for (HashMapHolder<Player>::MapType::iterator iter = m.begin(); iter != m.end(); ++iter)
+        if (iter->second->GetGUID() == guid)
+            return iter->second;
+
+    return NULL;
 }
 
 Unit* ObjectAccessor::FindUnit(uint64 guid)
@@ -152,12 +162,12 @@ Unit* ObjectAccessor::FindUnit(uint64 guid)
     return GetObjectInWorld(guid, (Unit*)NULL);
 }
 
-Player* ObjectAccessor::FindPlayerByName(const char* name)
+Player* ObjectAccessor::FindPlayerByName(const char* name, bool force)
 {
     ACE_GUARD_RETURN(LockType, g, *HashMapHolder<Player>::GetLock(), NULL);
     HashMapHolder<Player>::MapType& m = HashMapHolder<Player>::GetContainer();
     for (HashMapHolder<Player>::MapType::iterator iter = m.begin(); iter != m.end(); ++iter)
-        if (iter->second->IsInWorld() && strcmp(name, iter->second->GetName()) == 0)
+        if (!strcmp(name, iter->second->GetName()) && (iter->second->IsInWorld() || force))
             return iter->second;
 
     return NULL;
@@ -361,7 +371,7 @@ void ObjectAccessor::Update(uint32 /*diff*/)
 
 // Define the static members of HashMapHolder
 
-template <class T> std::unordered_map< uint64, T* > HashMapHolder<T>::m_objectMap;
+template <class T> UNORDERED_MAP< uint64, T* > HashMapHolder<T>::m_objectMap;
 template <class T> ACE_Thread_Mutex HashMapHolder<T>::i_lock;
 
 // Global definitions for the hashmap storage

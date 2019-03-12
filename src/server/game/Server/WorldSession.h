@@ -93,6 +93,7 @@ class WorldSession
         void SendPartyResult(PartyOperation operation, const std::string& member, PartyResult res);
         void SendAreaTriggerMessage(const char* Text, ...) ATTR_PRINTF(2, 3);
 
+        char const* GetIP();
         uint32 GetSecurity() const { return _security; }
         uint32 GetAccountId() const { return _accountId; }
         Player* GetPlayer() const { return _player; }
@@ -136,8 +137,8 @@ class WorldSession
         void SendNameQueryOpcodeFromDB(uint64 guid);
         static void SendNameQueryOpcodeFromDBCallBack(QueryResult_AutoPtr result, uint32 accountId);
 
-        void SendTrainerList(uint64 guid);
-        void SendTrainerList(uint64 guid, const std::string& strTitle);
+        void SendTrainerList(uint64 guid, uint64 entry = 0);
+        void SendTrainerList(uint64 guid, uint64 entry, const std::string& strTitle);
         void SendListInventory(uint64 guid, uint32 entry = 0);
         void SendShowBank(uint64 guid);
         void SendTabardVendorActivate(uint64 guid);
@@ -205,12 +206,10 @@ class WorldSession
         // Locales
         LocaleConstant GetSessionDbcLocale() const { return m_sessionDbcLocale; }
         int GetSessionDbLocaleIndex() const { return m_sessionDbLocaleIndex; }
-        const char *GetTrinityString(int32 entry) const;
+        const char *GetSkyFireString(int32 entry) const;
 
         uint32 GetLatency() const { return m_latency; }
         void SetLatency(uint32 latency) { m_latency = latency; }
-        void ResetClientTimeDelay() { m_clientTimeDelay = 0; }
-
         uint32 getDialogStatus(Player* player, Object* questgiver, uint32 defstatus);
 
         time_t m_timeOutTime;
@@ -669,7 +668,7 @@ class WorldSession
         // antidos protection
         bool EvaluateOpcode(WorldPacket& p, time_t time);
         uint32 GetMaxPacketCounterAllowed(uint16 opcode) const;
-        typedef std::unordered_map<uint16, PacketCounter> PacketThrottlingMap;
+        typedef UNORDERED_MAP<uint16, PacketCounter> PacketThrottlingMap;
         // mark this member as "mutable" so it can be modified even in const functions
         mutable PacketThrottlingMap _PacketThrottlingMap;
 
@@ -677,6 +676,7 @@ class WorldSession
         WorldSocket *m_Socket;
         std::string m_Address;
 
+        std::string _IP;
         uint32 _security;
         uint32 _accountId;
         uint8 m_expansion;
@@ -692,8 +692,7 @@ class WorldSession
         bool m_playerSave;
         LocaleConstant m_sessionDbcLocale;
         int m_sessionDbLocaleIndex;
-        std::atomic<uint32> m_latency;
-        std::atomic<uint32> m_clientTimeDelay;
+        uint32 m_latency;
 
         uint32 m_expireTime;
         bool m_forceExit;

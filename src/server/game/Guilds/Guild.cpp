@@ -29,7 +29,6 @@
 #include "SocialMgr.h"
 #include "Util.h"
 #include "Language.h"
-#include "MapManager.h"
 
 Guild::Guild()
 {
@@ -115,11 +114,11 @@ void Guild::CreateDefaultGuildRanks(int locale_idx)
     CharacterDatabase.PExecute("DELETE FROM guild_rank WHERE guildid='%u'", m_Id);
     CharacterDatabase.PExecute("DELETE FROM guild_bank_right WHERE guildid = '%u'", m_Id);
 
-    CreateRank(sObjectMgr->GetTrinityString(LANG_GUILD_MASTER, locale_idx),  GR_RIGHT_ALL);
-    CreateRank(sObjectMgr->GetTrinityString(LANG_GUILD_OFFICER, locale_idx), GR_RIGHT_ALL);
-    CreateRank(sObjectMgr->GetTrinityString(LANG_GUILD_VETERAN, locale_idx), GR_RIGHT_GCHATLISTEN | GR_RIGHT_GCHATSPEAK);
-    CreateRank(sObjectMgr->GetTrinityString(LANG_GUILD_MEMBER, locale_idx),  GR_RIGHT_GCHATLISTEN | GR_RIGHT_GCHATSPEAK);
-    CreateRank(sObjectMgr->GetTrinityString(LANG_GUILD_INITIATE, locale_idx), GR_RIGHT_GCHATLISTEN | GR_RIGHT_GCHATSPEAK);
+    CreateRank(sObjectMgr->GetSkyFireString(LANG_GUILD_MASTER, locale_idx),  GR_RIGHT_ALL);
+    CreateRank(sObjectMgr->GetSkyFireString(LANG_GUILD_OFFICER, locale_idx), GR_RIGHT_ALL);
+    CreateRank(sObjectMgr->GetSkyFireString(LANG_GUILD_VETERAN, locale_idx), GR_RIGHT_GCHATLISTEN | GR_RIGHT_GCHATSPEAK);
+    CreateRank(sObjectMgr->GetSkyFireString(LANG_GUILD_MEMBER, locale_idx),  GR_RIGHT_GCHATLISTEN | GR_RIGHT_GCHATSPEAK);
+    CreateRank(sObjectMgr->GetSkyFireString(LANG_GUILD_INITIATE, locale_idx), GR_RIGHT_GCHATLISTEN | GR_RIGHT_GCHATSPEAK);
 }
 
 bool Guild::AddMember(uint64 plGuid, uint32 plRank)
@@ -600,7 +599,7 @@ void Guild::BroadcastToOfficers(WorldSession *session, const std::string& msg, u
             WorldPacket data;
             ChatHandler::FillMessageData(&data, session, CHAT_MSG_OFFICER, language, NULL, 0, msg.c_str(), NULL);
 
-            Player *pl = ObjectAccessor::FindPlayer(MAKE_NEW_GUID(itr->first, 0, HIGHGUID_PLAYER));
+            Player *pl = ObjectAccessor::FindPlayer(MAKE_NEW_GUID(itr->first, 0, HIGHGUID_PLAYER), true);
 
             if (pl && pl->GetSession() && HasRankRight(pl->GetRank(), GR_RIGHT_OFFCHATLISTEN) && !pl->GetSocial()->HasIgnore(session->GetPlayer()->GetGUIDLow()))
                 pl->GetSession()->SendPacket(&data);
@@ -612,7 +611,7 @@ void Guild::BroadcastPacket(WorldPacket *packet)
 {
     for (MemberList::iterator itr = members.begin(); itr != members.end(); ++itr)
     {
-        Player* player = ObjectAccessor::FindPlayer(MAKE_NEW_GUID(itr->first, 0, HIGHGUID_PLAYER));
+        Player* player = ObjectAccessor::FindPlayer(MAKE_NEW_GUID(itr->first, 0, HIGHGUID_PLAYER), true);
         if (player)
             player->GetSession()->SendPacket(packet);
     }
@@ -624,7 +623,7 @@ void Guild::BroadcastPacketToRank(WorldPacket *packet, uint32 rankId)
     {
         if (itr->second.RankId == rankId)
         {
-            Player* player = ObjectAccessor::FindPlayer(MAKE_NEW_GUID(itr->first, 0, HIGHGUID_PLAYER));
+            Player* player = ObjectAccessor::FindPlayer(MAKE_NEW_GUID(itr->first, 0, HIGHGUID_PLAYER), true);
             if (player)
                 player->GetSession()->SendPacket(packet);
         }
@@ -768,7 +767,7 @@ void Guild::Roster(WorldSession *session /*= NULL*/)
             data << uint8(pl->getClass());
             data << uint8(0);                               // new 2.4.0
 
-            if (sWorld->getConfig(CONFIG_ENABLE_FAKE_WHO_ON_ARENA) && pl->InArena())
+            if (sWorld->getConfig(CONFIG_ENABLE_FAKE_WHO_ON_ARENA) && pl->InArena() && !pl->isGameMaster())
             {
                 uint32 zoneId = sMapMgr->GetZoneId(
                     pl->GetBattleGroundEntryPoint().GetMapId(),
@@ -1250,18 +1249,18 @@ void Guild::LoadGuildBankFromDB()
     } while (result->NextRow());
 
     // data needs to be at first place for Item::LoadFromDB
-    //                                        0     1      2       3          4
-    result = CharacterDatabase.PQuery("SELECT data, TabId, SlotId, item_guid, item_entry FROM guild_bank_item JOIN item_instance ON item_guid = guid WHERE guildid='%u' ORDER BY TabId", m_Id);
+    //                                        0          1            2                3      4         5        6      7             8                 9           10          11     12      13         14
+    result = CharacterDatabase.PQuery("SELECT itemEntry, creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments, randomPropertyId, durability, itemTextId, TabId, SlotId, item_guid, item_entry FROM guild_bank_item JOIN item_instance ON item_guid = guid WHERE guildid='%u' ORDER BY TabId", m_Id);
     if (!result)
         return;
 
     do
     {
         Field *fields = result->Fetch();
-        uint8 TabId = fields[1].GetUInt8();
-        uint8 SlotId = fields[2].GetUInt8();
-        uint32 ItemGuid = fields[3].GetUInt32();
-        uint32 ItemEntry = fields[4].GetUInt32();
+        uint8 TabId = fields[11].GetUInt8();
+        uint8 SlotId = fields[12].GetUInt8();
+        uint32 ItemGuid = fields[13].GetUInt32();
+        uint32 ItemEntry = fields[14].GetUInt32();
 
         if (TabId >= m_PurchasedTabs || TabId >= GUILD_BANK_MAX_TABS)
         {
@@ -1284,7 +1283,11 @@ void Guild::LoadGuildBankFromDB()
         }
 
         Item *pItem = NewItemOrBag(proto);
-        if (!pItem->LoadFromDB(ItemGuid, 0, result))
+
+        if (!pItem)
+            continue;
+
+        if (!pItem->LoadFromDB(ItemGuid, 0, fields))
         {
             CharacterDatabase.PExecute("DELETE FROM guild_bank_item WHERE guildid='%u' AND TabId='%u' AND SlotId='%u'", m_Id, uint32(TabId), uint32(SlotId));
             sLog->outError("Item GUID %u not found in item_instance, deleting from Guild Bank!", ItemGuid);
@@ -1725,7 +1728,7 @@ void Guild::AppendDisplayGuildBankSlot(WorldPacket& data, GuildBankTab const *ta
             data << uint32(pItem->GetItemSuffixFactor());   // SuffixFactor + 4
         data << uint8(pItem->GetCount());                   // +12 // ITEM_FIELD_STACK_COUNT
         data << uint32(0);                                  // +16 // Unknown value
-        data << uint8(0);                                   // unknown 2.4.2
+        data << uint8(abs(pItem->GetSpellCharges()));       // Charges
         if (uint32 Enchant0 = pItem->GetEnchantmentId(PERM_ENCHANTMENT_SLOT))
         {
             data << uint8(1);                               // number of enchantments (max 3) why max 3?
@@ -2042,4 +2045,3 @@ bool GuildItemPosCount::isContainedIn(GuildItemPosCountVec const &vec) const
 
     return false;
 }
-

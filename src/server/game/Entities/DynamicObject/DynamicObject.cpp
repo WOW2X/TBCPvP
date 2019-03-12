@@ -85,10 +85,10 @@ bool DynamicObject::Create(uint32 guidlow, Unit *caster, uint32 spellId, uint32 
         return false;
     }
 
-    WorldObject::_Create(guidlow, HIGHGUID_DYNAMICOBJECT, caster->GetPhaseMask());
+    WorldObject::_Create(guidlow, HIGHGUID_DYNAMICOBJECT);
 
     SetEntry(spellId);
-    SetFloatValue(OBJECT_FIELD_SCALE_X, 1);
+    SetObjectScale(1);
     SetUInt64Value(DYNAMICOBJECT_CASTER, caster->GetGUID());
 
     // The lower word of DYNAMICOBJECT_BYTES must be 0x0001. This value means that the visual radius will be overriden
@@ -155,7 +155,7 @@ void DynamicObject::Update(uint32 p_time)
         caster->RemoveDynObjectWithGUID(GetGUID());
         Delete();
     }
-    
+
     // Shifting naaru silver
     if (m_spellId == 45043)
     {
@@ -182,4 +182,10 @@ void DynamicObject::Delay(int32 delaytime)
     for (AffectedSet::iterator iunit= m_affected.begin();iunit != m_affected.end();++iunit)
         if (*iunit)
             (*iunit)->DelayAura(m_spellId, m_effIndex, delaytime);
+}
+
+bool DynamicObject::isVisibleForInState(Player const* u, bool inVisibleList) const
+{
+    return IsInWorld() && u->IsInWorld()
+        && (IsWithinDistInMap(u->m_seer, World::GetMaxVisibleDistanceForObject() + (inVisibleList ? World::GetVisibleObjectGreyDistance() : 0.0f), false));
 }

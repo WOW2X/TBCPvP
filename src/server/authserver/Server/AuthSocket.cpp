@@ -221,24 +221,11 @@ void AuthSocket::OnClose(void)
 // Read the packet from the client
 void AuthSocket::OnRead()
 {
-    uint32 maxChallengesInARow = ConfigMgr::GetIntDefault("ChallengesInARow.MaxCount", 3);
-    uint32 challengesInARow = 0;
     uint8 _cmd;
     while (1)
     {
         if (!socket().recv_soft((char *)&_cmd, 1))
             return;
-
-        if (maxChallengesInARow && _cmd == AUTH_LOGON_CHALLENGE)
-        {
-            ++challengesInARow;
-            if (challengesInARow >= maxChallengesInARow)
-            {
-                sLog->outString("Got %u AUTH_LOGON_CHALLENGE in a row from '%s', possible ongoing DoS", challengesInARow, socket().getRemoteAddress().c_str());
-                socket().shutdown();
-                return;
-            }
-        }
 
         size_t i;
 
@@ -303,40 +290,12 @@ void AuthSocket::_SetVSFields(const std::string& rI)
     OPENSSL_free((void*)s_hex);
 }
 
-std::map<std::string, uint32> LastLoginAttemptTimeForIP;
-uint32 LastLoginAttemptCleanTime = 0;
-ACE_Thread_Mutex LastLoginAttemptMutex;
-
 // Logon Challenge command handler
 bool AuthSocket::_HandleLogonChallenge()
 {
     sLog->outStaticDebug("Entering _HandleLogonChallenge");
     if (socket().recv_len() < sizeof(sAuthLogonChallenge_C))
         return false;
-
-    // mutex
-    {
-        TRINITY_GUARD(ACE_Thread_Mutex, LastLoginAttemptMutex);
-        std::string ipaddr = socket().getRemoteAddress();
-        uint32 currTime = time(NULL);
-        std::map<std::string, uint32>::iterator itr = LastLoginAttemptTimeForIP.find(ipaddr);
-        if (itr != LastLoginAttemptTimeForIP.end() && itr->second >= currTime)
-        {
-            ByteBuffer pkt;
-            pkt << uint8(AUTH_LOGON_CHALLENGE);
-            pkt << uint8(0x00);
-            pkt << uint8(WOW_FAIL_UNKNOWN_ACCOUNT);
-            socket().send((char const*)pkt.contents(), pkt.size());
-            return true;
-        }
-        if (LastLoginAttemptCleanTime + 60 < currTime)
-        {
-            LastLoginAttemptTimeForIP.clear();
-            LastLoginAttemptCleanTime = currTime;
-        }
-        else
-            LastLoginAttemptTimeForIP[ipaddr] = currTime;
-    }
 
     // Read the first 4 bytes (header) to get the length of the remaining of the packet
     std::vector<uint8> buf;
@@ -409,11 +368,11 @@ bool AuthSocket::_HandleLogonChallenge()
         // Get the account details from the account table
         // No SQL injection (prepared statement)
 
-        result = LoginDatabase.PQuery("SELECT a.sha_pass_hash, a.id, a.locked, a.last_ip, aa.gmlevel, a.v, a.s "
+        result = LoginDatabase.PQuery("SELECT a.sha_pass_hash,a.id,a.locked,a.last_ip,aa.gmlevel,a.v,a.s "
             "FROM account a "
             "LEFT JOIN account_access aa "
             "ON (a.id = aa.id) "
-            "WHERE a.username = '%s'", _login.c_str());
+            "WHERE a.username = '%s'",_login.c_str ());
 
         if (result)
         {
@@ -761,7 +720,7 @@ bool AuthSocket::_HandleReconnectChallenge()
 
     _login = (const char*)ch->I;
 
-    QueryResult_AutoPtr result = LoginDatabase.PQuery("SELECT a.sessionkey, a.id, aa.gmlevel, ta.id  FROM account a LEFT JOIN account_access aa ON (a.id = aa.id) WHERE username = '%s'", _login.c_str());
+    QueryResult_AutoPtr result = LoginDatabase.PQuery ("SELECT sessionkey FROM account WHERE username = '%s'", _login.c_str ());
 
     // Stop if the account is not found
     if (!result)

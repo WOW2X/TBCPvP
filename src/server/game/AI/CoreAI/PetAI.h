@@ -27,8 +27,6 @@
 class Creature;
 class Spell;
 
-typedef std::vector<std::pair<Unit*, Spell*>> TargetSpellList;
-
 class PetAI : public CreatureAI
 {
     public:
@@ -47,8 +45,6 @@ class PetAI : public CreatureAI
         void OwnerDamagedBy(Unit* attacker);
         void OwnerAttacked(Unit* target);
 
-        void HandleTaunt(Unit* taunter, bool apply);
-
     private:
         bool _isVisible(Unit *) const;
         bool _needToStop(void) const;
@@ -61,13 +57,12 @@ class PetAI : public CreatureAI
         std::set<uint64> m_AllySet;
         uint32 m_updateAlliesTimer;
         bool m_forceAttack;
+        bool m_update_forced_speed;
 
         Unit *SelectNextTarget();
         void HandleReturnMovement();
         void DoAttack(Unit *target, bool chase);
         bool _CanAttack(Unit *target);
-
-        TargetSpellList targetSpellStore;
 };
 #endif
 

@@ -76,8 +76,17 @@ EndScriptData */
 #define SPELL_SUMMON_WEAPONE              36962
 #define SPELL_SUMMON_WEAPONF              36963
 #define SPELL_SUMMON_WEAPONG              36964
-#define SPELL_RES_VISUAL                  24171
 #define SPELL_WEAPON_SPAWN                41236
+
+//Phase 3 Advisor max health
+#define SPELL_RES_VISUAL                  24341
+enum AdvisorMaxHealth
+{
+    HP_THALADRED        = 273168,
+    HP_SANGUINAR        = 273168,
+    HP_CAPERNIAN        = 191196,
+    HP_TELONICUS        = 273168
+};
 
 //Phase 4 spells
 #define SPELL_FIREBALL                    36805
@@ -90,28 +99,60 @@ EndScriptData */
 #define SPELL_SUMMON_PHOENIX              36723
 #define SPELL_MIND_CONTROL                32830
 
+//Phase 5 animation
+#define GRAVITY_X                          794.4f//793.6f
+#define GRAVITY_Y                          -0.42f//-0.045f
+#define GRAVITY_Z                          48.66f
+
+//Phase 5 blue beam
+#define SPELL_PURPLE_BEAM_RIGHT           36090
+#define SPELL_PURPLE_BEAM_LEFT            36089
+
 //Phase 5 spells
+#define SPELL_NETHERBEAM_GLOW1            36364
+#define SPELL_NETHERBEAM_GLOW2            36370
+#define SPELL_NETHERBEAM_GLOW3            36371
 #define SPELL_EXPLODE                     36092
+#define SPELL_GAINING_POWER               36091
 #define SPELL_FULLPOWER                   36187
 #define SPELL_KNOCKBACK                   11027
 #define SPELL_GRAVITY_LAPSE               34480
 #define SPELL_GRAVITY_LAPSE_AURA          39432
 #define SPELL_NETHER_BEAM                 35873
+#define SPELL_EXPLODE_SHAKE1              36373
+#define SPELL_EXPLODE_SHAKE2              36375
+#define SPELL_EXPLODE_SHAKE3              36376
+#define SPELL_EXPLODE_SHAKE4              36354
+#define SPELL_GAIN_POWER1                 36196
+#define SPELL_GAIN_POWER2                 36197
+#define SPELL_GAIN_POWER3                 36198
 
 //Thaladred the Darkener spells
+#define EQUIP_DEVASTATION                 41560
+#define DEVASTATION_EQUIP_INFO            33489154
 #define SPELL_PSYCHIC_BLOW                10689
 #define SPELL_SILENCE                     30225
+#define SPELL_REND                        36965
 
 //Lord Sanguinar spells
+#define EQUIP_RED_MACE                    40676
+#define RED_MACE_EQUIP_INFO               352453634
+#define EQUIP_PHASESHIFT_BULWARK          40867
+#define PHASESHIFT_BULWARK_EQUIP_INFO     33490436
+#define PHASESHIFT_BULWARK_EQUIP_INFO2    1038
 #define SPELL_BELLOWING_ROAR              40636
 
 //Grand Astromancer Capernian spells
+#define EQUIP_SOD                         41895
+#define SOD_EQUIP_INFO                    33490946
 #define CAPERNIAN_DISTANCE                20                //she casts away from the target
 #define SPELL_CAPERNIAN_FIREBALL          36971
 #define SPELL_CONFLAGRATION               37018
 #define SPELL_ARCANE_EXPLOSION            36970
 
 //Master Engineer Telonicus spells
+#define EQUIP_INFINITY_BLADE              41872
+#define INFINITY_BLADE_EQUIP_INFO         33492738
 #define SPELL_BOMB                        37036
 #define SPELL_REMOTE_TOY                  37027
 
@@ -119,13 +160,15 @@ EndScriptData */
 #define SPELL_NETHER_VAPOR                35859
 
 //Phoenix spell
-#define SPELL_BURN                          36720
-#define SPELL_EMBER_BLAST                   34341
-#define SPELL_REBIRTH                       41587
+#define SPELL_BURN                        36720
+#define SPELL_EMBER_BLAST                 34341
+#define SPELL_REBIRTH                     41587
 
 //Creature IDs
 #define PHOENIX                           21362
 #define PHOENIX_EGG                       21364
+#define KAEL_TRIGGER                      85000
+#define KAEL_TRIGGER2                     85001
 
 //Phoenix egg and phoenix model
 #define PHOENIX_MODEL           19682
@@ -142,10 +185,6 @@ float KaelthasWeapons[7][5] =
     {21272, 785.42f, -13.59f, 48.72f, 3.4f},                   //[Warp Slicer]
     {21268, 793.06f, -16.61f, 48.72f, 3.10f}                    //[Netherstrand Longbow]
 };
-
-#define GRAVITY_X 795.0f
-#define GRAVITY_Y 0.0f
-#define GRAVITY_Z 70.0f
 
 #define TIME_PHASE_2_3      120000
 #define TIME_PHASE_3_4      120000
@@ -202,6 +241,8 @@ struct advisorbase_ai : public ScriptedAI
             if (Kaelthas)
                 Kaelthas->AI()->EnterEvadeMode();
         }
+
+        UpdateMaxHealth(false);
     }
 
     void Revive(Unit *pTarget)
@@ -209,8 +250,20 @@ struct advisorbase_ai : public ScriptedAI
         me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
         me->SetHealth(me->GetMaxHealth());
         me->SetUInt32Value(UNIT_FIELD_BYTES_1, 0);
-        DoCast(me, SPELL_RES_VISUAL, false);
+        DoCast(me, SPELL_RES_VISUAL, true);
         DelayRes_Timer = 2000;
+    }
+
+    void UpdateMaxHealth(bool twice)
+    {
+        if (me->GetGUID() == instance->GetData64(DATA_THALADREDTHEDARKENER))
+            me->SetMaxHealth(twice ? HP_THALADRED*2 : HP_THALADRED);
+        if (me->GetGUID() == instance->GetData64(DATA_LORDSANGUINAR))
+            me->SetMaxHealth(twice ? HP_SANGUINAR*2 : HP_SANGUINAR);
+        if (me->GetGUID() == instance->GetData64(DATA_GRANDASTROMANCERCAPERNIAN))
+            me->SetMaxHealth(twice ? HP_CAPERNIAN*2 : HP_CAPERNIAN);
+        if (me->GetGUID() == instance->GetData64(DATA_MASTERENGINEERTELONICUS))
+            me->SetMaxHealth(twice ? HP_TELONICUS*2 : HP_TELONICUS);
     }
 
     void DamageTaken(Unit* pKiller, uint32 &damage)
@@ -243,6 +296,8 @@ struct advisorbase_ai : public ScriptedAI
             me->GetMotionMaster()->Clear();
             me->GetMotionMaster()->MoveIdle();
             me->SetStandState(UNIT_STAND_STATE_DEAD);
+
+            UpdateMaxHealth(true);
 
             if (instance->GetData(DATA_KAELTHASEVENT) == 3)
                 JustDied(pKiller);
@@ -305,6 +360,9 @@ struct boss_kaelthasAI : public ScriptedAI
     uint32 Phase_Timer;                                     //generic timer
     uint32 PyrosCasted;
 
+    uint32 Step;
+    Creature* beam[6];
+
     bool InGravityLapse;
     bool IsCastingFireball;
     bool ChainPyros;
@@ -336,6 +394,10 @@ struct boss_kaelthasAI : public ScriptedAI
 
     void Reset()
     {
+        if (Step >= 9)
+            if (instance)
+                instance->SetData(DATA_EXPLODE, DONE);
+
         me->SetNoCallAssistance(true);
         Fireball_Timer = 5000+rand()%10000;
         ArcaneDisruption_Timer = 45000;
@@ -354,7 +416,11 @@ struct boss_kaelthasAI : public ScriptedAI
         IsCastingFireball = false;
         ChainPyros = false;
 
-        if (me->isInCombat())
+        Step = 0;
+
+        me->SetObjectScale(1.0f);
+
+        if (!me->isInCombat())
             PrepareAdvisors();
 
         DeleteLegs();
@@ -362,6 +428,11 @@ struct boss_kaelthasAI : public ScriptedAI
 
         me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
         me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        me->RemoveUnitMovementFlag(MOVEFLAG_WALK_MODE);
+        SetCombatMovement(false);
+
+        me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_STAND);
+        me->setEmoteState(EMOTE_STATE_STAND);
 
         if (instance)
             instance->SetData(DATA_KAELTHASEVENT, NOT_STARTED);
@@ -410,11 +481,12 @@ struct boss_kaelthasAI : public ScriptedAI
         }
         else
         {
-            PrepareAdvisors();
+            //PrepareAdvisors();
 
             DoScriptText(SAY_INTRO, me);
 
             instance->SetData(DATA_KAELTHASEVENT, IN_PROGRESS);
+            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
             me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
 
             PhaseSubphase = 0;
@@ -441,8 +513,19 @@ struct boss_kaelthasAI : public ScriptedAI
             Unit *pTarget = SelectUnit(SELECT_TARGET_RANDOM, 0);
             if (pTarget)
                 summoned->AI()->AttackStart(pTarget);
+            summons.Summon(summoned);
         }
-        summons.Summon(summoned);
+        else if (summoned->GetEntry() == KAEL_TRIGGER)
+        {
+            if (Step < 11) // Beams during ascention
+                summoned->CastSpell(((TempSummon*)summoned)->GetSummoner(), SPELL_PURPLE_BEAM_RIGHT, false);
+            else // explosion effects on Kael during gaining power
+                summoned->CastSpell(((TempSummon*)summoned)->GetSummoner(), RAND(SPELL_GAIN_POWER1, SPELL_GAIN_POWER2, SPELL_GAIN_POWER3), false);
+        }
+        else if (summoned->GetEntry() == KAEL_TRIGGER2)
+        {
+            summoned->CastSpell(((TempSummon*)summoned)->GetSummoner(), SPELL_PURPLE_BEAM_LEFT, false);
+        }
     }
 
     void SummonedCreatureDespawn(Creature *summon) {summons.Despawn(summon);}
@@ -469,6 +552,159 @@ struct boss_kaelthasAI : public ScriptedAI
                 creature->setDeathState(JUST_DIED);
             }
         }
+    }
+
+    uint32 Intro_Next(uint32 Step) //animation sequence when starting phase 5
+    {    /*TODO list:
+        - find a proper way to implement netherbeams (36089, 36090)
+        - find right spells and animations for an arcane storm (some spells known: 36196, 36197, 36198)
+        - setup proper timers
+        - others
+        */
+
+        switch (Step)
+        {
+            case 0:
+                instance->SetData(DATA_KAELTHASEVENT, 4);
+                me->AttackStop();
+                me->SetReactState(REACT_PASSIVE);
+                me->GetMotionMaster()->Clear();
+                me->GetMotionMaster()->MoveIdle();
+                DoTeleportTo(795.0f, -0.46f, 48.7f);
+                me->Relocate(795.0f, -0.46f, 48.7f);
+                me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                ChainPyros = false;
+                return 1000;
+            case 1:
+                DoScriptText(SAY_PHASE5_NUTS, me);
+                DoCast(me, SPELL_GAINING_POWER, true);
+                return 1000;
+            case 2:
+                //NetherBeam spells needed here
+                return 0;
+            case 3:
+
+                return 1000;
+            case 4:
+                beam[0] = me->SummonCreature(KAEL_TRIGGER2, 798.91f, -38.11f, 85.18f, 1.53f, TEMPSUMMON_TIMED_DESPAWN, 19000);
+                beam[1] = me->SummonCreature(KAEL_TRIGGER, 798.56f, 36.16f, 85.18f, 4.68f, TEMPSUMMON_TIMED_DESPAWN, 19000);
+                me->SetUnitMovementFlags(MOVEFLAG_LEVITATING + MOVEFLAG_ONTRANSPORT + MOVEFLAG_SWIMMING);
+                me->RemoveUnitMovementFlag(MOVEFLAG_WALK_MODE);
+                me->SendMonsterMoveWithSpeed(GRAVITY_X-0.05f, GRAVITY_Y-0.05f, GRAVITY_Z+25.0f, 12000);
+                DoCast(me, SPELL_EXPLODE_SHAKE1, true);
+                me->SetObjectScale(1.2f);
+                return 4000;
+            case 5:
+                beam[2] = me->SummonCreature(KAEL_TRIGGER, 847.78f, 14.56f, 59.76f, 3.5f, TEMPSUMMON_TIMED_DESPAWN, 15000);
+                beam[3] = me->SummonCreature(KAEL_TRIGGER2, 847.78f, -16.396f, 59.76f, 3.5f, TEMPSUMMON_TIMED_DESPAWN, 15000);
+                DoCast(me, SPELL_NETHERBEAM_GLOW1, true);
+                me->SetObjectScale(1.4f);
+                return 4000;
+            case 6:
+                beam[4] = me->SummonCreature(KAEL_TRIGGER, 844.368f, 6.19f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 11000);
+                beam[5] = me->SummonCreature(KAEL_TRIGGER2, 844.368f, -7.72f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 11000);
+                DoCast(me, SPELL_EXPLODE_SHAKE2, true);
+                DoCast(me, SPELL_NETHERBEAM_GLOW2, true);
+                me->SetObjectScale(1.6f);
+                return 4000;
+            case 7:
+                DoCast(me, SPELL_NETHERBEAM_GLOW3, true);
+                me->SetObjectScale(1.8f);
+                return 4000;
+            case 8:
+                DoCast(me, SPELL_EXPLODE_SHAKE3, true);
+                me->SetObjectScale(2.0f);
+                return 2000;
+            case 9:
+                me->RemoveAllAuras();
+                me->InterruptNonMeleeSpells(false);
+                me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_DROWNED);
+                me->setEmoteState(EMOTE_STATE_DROWNED);
+                return 10;
+            case 10:
+                DoCast(me, SPELL_EXPLODE, true);
+                if (instance)
+                    instance->SetData(DATA_EXPLODE, DONE);
+                return 2000;
+            case 11:
+                DoCast(me, SPELL_EXPLODE_SHAKE4, true);
+                me->SummonCreature(KAEL_TRIGGER, 844.368f, -7.72f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 2000);
+                DoPlaySoundToSet(me, 6477);
+                return 500;
+            case 12:
+                DoCast(me, SPELL_NETHERBEAM_GLOW1, true);
+                me->SummonCreature(KAEL_TRIGGER, 844.368f, -7.72f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 2000);
+                DoPlaySoundToSet(me, 6477);
+                return 500;
+            case 13:
+                me->SummonCreature(KAEL_TRIGGER, 844.368f, -7.72f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 2000);
+                DoPlaySoundToSet(me, 6477);
+                return 250;
+            case 14:
+                me->SummonCreature(KAEL_TRIGGER, 844.368f, -7.72f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 2000);
+                DoPlaySoundToSet(me, 6477);
+                return 250;
+            case 15:
+                me->SummonCreature(KAEL_TRIGGER, 844.368f, -7.72f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 2000);
+                DoPlaySoundToSet(me, 6477);
+                return 500;
+            case 16:
+                me->SummonCreature(KAEL_TRIGGER, 844.368f, -7.72f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 2000);
+                DoPlaySoundToSet(me, 6477);
+                return 1000;
+            case 17:
+                me->SummonCreature(KAEL_TRIGGER, 844.368f, -7.72f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 2000);
+                DoPlaySoundToSet(me, 6477);
+                return 250;
+            case 18:
+                me->SummonCreature(KAEL_TRIGGER, 844.368f, -7.72f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 2000);
+                DoPlaySoundToSet(me, 6477);
+                return 500;
+            case 19:
+                me->SummonCreature(KAEL_TRIGGER, 844.368f, -7.72f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 2000);
+                DoPlaySoundToSet(me, 6477);
+                return 250;
+            case 20:
+                me->SummonCreature(KAEL_TRIGGER, 844.368f, -7.72f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 2000);
+                DoPlaySoundToSet(me, 6477);
+                return 1000;
+            case 21:
+                me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_STAND);
+                me->setEmoteState(EMOTE_STATE_STAND);
+                DoCast(me, SPELL_FULLPOWER);
+                me->SummonCreature(KAEL_TRIGGER, 844.368f, -7.72f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 2000);
+                DoPlaySoundToSet(me, 6477);
+                return 1000;
+            case 22:
+                me->SummonCreature(KAEL_TRIGGER, 844.368f, -7.72f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 2000);
+                DoPlaySoundToSet(me, 6477);
+                return 2000;
+            case 23:
+                me->SendMonsterMoveWithSpeed(GRAVITY_X, GRAVITY_Y, GRAVITY_Z, 13000);
+                me->Relocate(GRAVITY_X, GRAVITY_Y, GRAVITY_Z);
+                me->SummonCreature(KAEL_TRIGGER, 844.368f, -7.72f, 59.76f, 3.1f, TEMPSUMMON_TIMED_DESPAWN, 2000);
+                DoPlaySoundToSet(me, 6477);
+                me->RemoveAurasDueToSpell(SPELL_NETHERBEAM_GLOW1);
+                return 13000;
+            case 24:
+                me->RemoveAllAuras();
+                me->Relocate(GRAVITY_X, GRAVITY_Y, GRAVITY_Z);
+                me->InterruptNonMeleeSpells(false);
+                me->RemoveAurasDueToSpell(SPELL_FULLPOWER);
+                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                me->RemoveUnitMovementFlag(MOVEFLAG_LEVITATING);
+                me->RemoveUnitMovementFlag(MOVEFLAG_SWIMMING);
+                me->RemoveUnitMovementFlag(MOVEFLAG_ONTRANSPORT);
+                me->AddUnitMovementFlag(MOVEFLAG_WALK_MODE);
+                me->SetReactState(REACT_AGGRESSIVE);
+                DoStartMovement(me->getVictim());
+                AttackStart(me->getVictim());
+                Fireball_Timer = 0;
+                Phase = 6;
+                return 500;
+            default: return 0;
+        }
+        return 0;
     }
 
     void EnterCombat(Unit *who)
@@ -673,7 +909,8 @@ struct boss_kaelthasAI : public ScriptedAI
                         }
                         break;
                 }
-            }break;
+            }
+            break;
 
             case 2:
             {
@@ -692,7 +929,7 @@ struct boss_kaelthasAI : public ScriptedAI
                     for (uint32 i = 0; i < 7; ++i)
                     {
                         Unit *pTarget = SelectUnit(SELECT_TARGET_RANDOM, 0);
-                        Weapon = me->SummonCreature(((uint32)KaelthasWeapons[i][0]),KaelthasWeapons[i][1],KaelthasWeapons[i][2],KaelthasWeapons[i][3],0, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 60000);
+                        Weapon = me->SummonCreature(((uint32)KaelthasWeapons[i][0]),KaelthasWeapons[i][1],KaelthasWeapons[i][2],KaelthasWeapons[i][3],0, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 10000);
 
                         if (!Weapon)
                             sLog->outError("SOSCR: Kael'thas weapon %i could not be spawned", i);
@@ -716,13 +953,23 @@ struct boss_kaelthasAI : public ScriptedAI
                     instance->SetData(DATA_KAELTHASEVENT, 3);
                     Phase = 3;
                     PhaseSubphase = 0;
+                    Phase_Timer = 12000;
                 } else Phase_Timer -= diff;
                  //missing Resetcheck
-            }break;
+            }
+            break;
 
             case 3:
             {
                 if (PhaseSubphase == 0)
+                {
+                    if (Phase_Timer <= diff)
+                    {
+                        PhaseSubphase = 1;
+                    } else Phase_Timer -= diff;
+                }
+
+                if (PhaseSubphase == 1)
                 {
                     //Respawn advisors
                     Unit *pTarget = SelectUnit(SELECT_TARGET_RANDOM, 0);
@@ -734,30 +981,35 @@ struct boss_kaelthasAI : public ScriptedAI
                         if (!Advisor)
                             sLog->outError("TSCR: Kael'Thas Advisor %u does not exist. Possibly despawned? Incorrectly Killed?", i);
                         else if (pTarget)
+                        {
                             ((advisorbase_ai*)Advisor->AI())->Revive(pTarget);
+                        }
                     }
 
-                    PhaseSubphase = 1;
+                    PhaseSubphase = 2;
                     Phase_Timer = TIME_PHASE_3_4;
                 }
 
-                if (Phase_Timer <= diff)
+                if (PhaseSubphase == 2)
                 {
-                    DoScriptText(SAY_PHASE4_INTRO2, me);
-                    Phase = 4;
-
-                    instance->SetData(DATA_KAELTHASEVENT, 4);
-
-                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-
-                    if (Unit *pTarget = SelectUnit(SELECT_TARGET_RANDOM, 0))
+                    if (Phase_Timer <= diff)
                     {
-                        DoResetThreat();//only healers will be at top threat, so reset(not delete) all players's threat when Kael comes to fight
-                        AttackStart(pTarget);
-                    }
-                    Phase_Timer = 30000;
-                } else Phase_Timer -= diff;
+                        DoScriptText(SAY_PHASE4_INTRO2, me);
+                        Phase = 4;
+
+                        instance->SetData(DATA_KAELTHASEVENT, 4);
+
+                        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+
+                        if (Unit *pTarget = SelectUnit(SELECT_TARGET_RANDOM, 0))
+                        {
+                            DoResetThreat(); // only healers will be at top threat, so reset(not delete) all players's threat when Kael comes to fight
+                            AttackStart(pTarget);
+                        }
+                        Phase_Timer = 30000;
+                    } else Phase_Timer -= diff;
+                }
             }
             break;
 
@@ -769,9 +1021,9 @@ struct boss_kaelthasAI : public ScriptedAI
                 if (!UpdateVictim())
                     return;
 
-                //Fireball_Timer
                 if (!InGravityLapse && !ChainPyros && Phase != 5)
                 {
+                    //Fireball_Timer
                     if (Fireball_Timer <= diff)
                     {
                         if (!IsCastingFireball)
@@ -802,13 +1054,14 @@ struct boss_kaelthasAI : public ScriptedAI
                         ArcaneDisruption_Timer = 60000;
                     } else ArcaneDisruption_Timer -= diff;
 
+                    //FlameStrike_Timer
                     if (FlameStrike_Timer <= diff)
                     {
                         if (Unit* pUnit = SelectTarget(SELECT_TARGET_RANDOM, 0, 70, true))
                             DoCast(pUnit, SPELL_FLAME_STRIKE);
 
                         FlameStrike_Timer = 30000;
-                    }FlameStrike_Timer -= diff;
+                    } else FlameStrike_Timer -= diff;
 
                     if (MindControl_Timer <= diff)
                     {
@@ -816,47 +1069,39 @@ struct boss_kaelthasAI : public ScriptedAI
                         for (uint32 i = 0; i < 3; i++)
                         {
                             Unit *pTarget =SelectTarget(SELECT_TARGET_RANDOM, 1, 70, true);
-                            if (!pTarget) pTarget = me->getVictim();
+                            if (!pTarget)
+                                pTarget = me->getVictim();
                             sLog->outDebug("TSCR: Kael'Thas mind control not supported.");
                             if (pTarget)
                                 DoCast(pTarget, SPELL_MIND_CONTROL);
                         }
 
                         MindControl_Timer = 60000;
-                    }MindControl_Timer -= diff;
-                }
+                    } else MindControl_Timer -= diff;
 
-                //Phoenix_Timer
-                if (Phoenix_Timer <= diff)
-                {
-                    DoCast(me, SPELL_SUMMON_PHOENIX);
-                    switch (rand()%2)
+                    //Phoenix_Timer
+                    if (Phoenix_Timer <= diff)
                     {
-                    case 0: DoScriptText(SAY_SUMMON_PHOENIX1, me); break;
-                    case 1: DoScriptText(SAY_SUMMON_PHOENIX2, me); break;
-                    }
+                        DoCast(me, SPELL_SUMMON_PHOENIX);
 
-                    Phoenix_Timer = 60000;
-                } else Phoenix_Timer -= diff;
+                        switch (rand() % 2)
+                        {
+                            case 0: DoScriptText(SAY_SUMMON_PHOENIX1, me); break;
+                            case 1: DoScriptText(SAY_SUMMON_PHOENIX2, me); break;
+                        }
+
+                        Phoenix_Timer = 60000;
+                    }
+                    else Phoenix_Timer -= diff;
+                }
 
                 //Phase 4 specific spells
                 if (Phase == 4)
                 {
                     if (me->GetHealth()*100 / me->GetMaxHealth() < 50)
                     {
-                        instance->SetData(DATA_KAELTHASEVENT, 4);
                         Phase = 5;
-                        Phase_Timer = 10000;
-
-                        DoScriptText(SAY_PHASE5_NUTS, me);
-
-                        me->GetMotionMaster()->Clear();
-                        me->GetMotionMaster()->MoveIdle();
-                        DoTeleportTo(GRAVITY_X, GRAVITY_Y, GRAVITY_Z);
-
-                        me->InterruptNonMeleeSpells(false);
-                        DoCast(me, SPELL_FULLPOWER);
-                        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                        Phase_Timer = 0;
                     }
 
                     //ShockBarrier_Timer
@@ -871,15 +1116,17 @@ struct boss_kaelthasAI : public ScriptedAI
                     } else ShockBarrier_Timer -= diff;
 
                     //Chain Pyros (3 of them max)
-                    if (ChainPyros){
+                    if (ChainPyros)
+                    {
                         if (PyrosCasted < 3 && Check_Timer <= diff)
                         {
                             DoCast(me->getVictim(), SPELL_PYROBLAST);
                             ++PyrosCasted;
 
-                            Check_Timer = 4400;
+                            Check_Timer = 4200;
                         } else Check_Timer -= diff;
-                        if (PyrosCasted > 3)
+
+                        if (PyrosCasted >= 3)
                         {
                             ChainPyros = false;
                             Fireball_Timer = 2500;
@@ -892,17 +1139,11 @@ struct boss_kaelthasAI : public ScriptedAI
                 {
                     if (Phase_Timer <= diff)
                     {
-                        me->InterruptNonMeleeSpells(false);
-                        me->RemoveAurasDueToSpell(SPELL_FULLPOWER);
-                        DoCast(me, SPELL_EXPLODE);
-                        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-                        Phase = 6;
-                        DoStartMovement(me->getVictim());
-                        AttackStart(me->getVictim());
+                        Phase_Timer = Intro_Next(Step++);
+
                     } else Phase_Timer -= diff;
                 }
 
-                //Phase 5
                 if (Phase == 6)
                 {
                     //GravityLapse_Timer
@@ -936,8 +1177,8 @@ struct boss_kaelthasAI : public ScriptedAI
                             case 1:
                                 switch (rand()%2)
                                 {
-                                case 0: DoScriptText(SAY_GRAVITYLAPSE1, me); break;
-                                case 1: DoScriptText(SAY_GRAVITYLAPSE2, me); break;
+                                    case 0: DoScriptText(SAY_GRAVITYLAPSE1, me); break;
+                                    case 1: DoScriptText(SAY_GRAVITYLAPSE2, me); break;
                                 }
 
                                 // 2) At that point he will put a Gravity Lapse debuff on everyone
@@ -1021,7 +1262,7 @@ struct boss_kaelthasAI : public ScriptedAI
                     }
                 }
 
-                if (!InGravityLapse)
+                if (!InGravityLapse && !(Phase == 5))
                     DoMeleeAttackIfReady();
             }
         }
@@ -1039,6 +1280,11 @@ struct boss_thaladred_the_darkenerAI : public advisorbase_ai
 
     void Reset()
     {
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_DISPLAY, EQUIP_DEVASTATION);
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_INFO, DEVASTATION_EQUIP_INFO);
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_DISPLAY+1, 0);
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_INFO+2, 0);
+
         Gaze_Timer = 100;
         Silence_Timer = 20000;
         PsychicBlow_Timer = 10000;
@@ -1086,7 +1332,7 @@ struct boss_thaladred_the_darkenerAI : public advisorbase_ai
                     me->AddThreat(pTarget, 5000000.0f);
                     DoScriptText(EMOTE_THALADRED_GAZE, me, pTarget);
                 }
-                Gaze_Timer = 8500;
+                Gaze_Timer = 9000;
             }
         } else Gaze_Timer -= diff;
 
@@ -1104,6 +1350,9 @@ struct boss_thaladred_the_darkenerAI : public advisorbase_ai
             PsychicBlow_Timer = 20000+rand()%5000;
         } else PsychicBlow_Timer -= diff;
 
+        if (me->isAttackReady() && me->IsWithinMeleeRange(me->getVictim()))
+            DoCast(me->getVictim(), SPELL_REND);
+
         DoMeleeAttackIfReady();
     }
 };
@@ -1117,6 +1366,12 @@ struct boss_lord_sanguinarAI : public advisorbase_ai
 
     void Reset()
     {
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_DISPLAY, EQUIP_RED_MACE);
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_INFO, RED_MACE_EQUIP_INFO);
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_DISPLAY+1, EQUIP_PHASESHIFT_BULWARK);
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_INFO+2, PHASESHIFT_BULWARK_EQUIP_INFO);
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_INFO+3, PHASESHIFT_BULWARK_EQUIP_INFO2);
+
         Fear_Timer = 20000;
         advisorbase_ai::Reset();
     }
@@ -1168,16 +1423,17 @@ struct boss_grand_astromancer_capernianAI : public advisorbase_ai
     uint32 Fireball_Timer;
     uint32 Conflagration_Timer;
     uint32 ArcaneExplosion_Timer;
-    uint32 Yell_Timer;
-    bool Yell;
 
     void Reset()
     {
-        Fireball_Timer = 2000;
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_DISPLAY, EQUIP_SOD);
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_INFO, SOD_EQUIP_INFO);
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_DISPLAY+1, 0);
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_INFO+2, 0);
+
+        Fireball_Timer = 0;
         Conflagration_Timer = 20000;
         ArcaneExplosion_Timer = 5000;
-        Yell_Timer = 2000;
-        Yell = false;
 
         advisorbase_ai::Reset();
     }
@@ -1209,6 +1465,8 @@ struct boss_grand_astromancer_capernianAI : public advisorbase_ai
 
         if (!who || FakeDeath)
             return;
+
+        DoScriptText(SAY_CAPERNIAN_AGGRO, me);
     }
 
     void UpdateAI(const uint32 diff)
@@ -1222,17 +1480,6 @@ struct boss_grand_astromancer_capernianAI : public advisorbase_ai
         //Return since we have no target
         if (!UpdateVictim())
             return;
-
-        //Yell_Timer
-        if (!Yell)
-        {
-            if (Yell_Timer <= diff)
-            {
-                DoScriptText(SAY_CAPERNIAN_AGGRO, me);
-
-                Yell = true;
-            } else Yell_Timer -= diff;
-        }
 
         //Fireball_Timer
         if (Fireball_Timer <= diff)
@@ -1293,6 +1540,11 @@ struct boss_master_engineer_telonicusAI : public advisorbase_ai
 
     void Reset()
     {
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_DISPLAY, EQUIP_INFINITY_BLADE);
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_INFO, INFINITY_BLADE_EQUIP_INFO);
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_DISPLAY+1, 0);
+        me->SetUInt32Value(UNIT_VIRTUAL_ITEM_INFO+2, 0);
+
         Bomb_Timer = 10000;
         RemoteToy_Timer = 5000;
 
@@ -1555,6 +1807,7 @@ CreatureAI* GetAI_mob_phoenix_egg_tk(Creature* creature)
 {
     return new mob_phoenix_egg_tkAI (creature);
 }
+
 void AddSC_boss_kaelthas()
 {
     Script *newscript;
@@ -1598,4 +1851,3 @@ void AddSC_boss_kaelthas()
     newscript->GetAI = &GetAI_mob_phoenix_egg_tk;
     newscript->RegisterSelf();
 }
-

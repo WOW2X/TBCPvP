@@ -166,14 +166,30 @@ EAIErrorLevel = 2
 #        These spells are ignored for LoS calculation
 #         List of ids with delimiter ','
 #
+#    vmap.petLOS
+#        Check LOS for pets, to avoid them going through walls etc.
+#                 0 (disable, somewhat less CPU usage)
+#        Default: 1 (enable, each pet attack command will check for LOS)
+#
+#    vmap.totem
+#        Use VMAP for totem summon place calculation
+#        Default: 0 (disable, less CPU usage)
+#                 1 (enable, each totem created check LOS)
+#
+#    vmap.enableIndoorCheck
+#        Enable/Disable VMap based indoor check to remove outdoor-only auras (mounts etc.)
+#                 0 (disabled, somewhat less CPU usage)
+#        Default: 1 (enabled)
+#
 #    mmap.enable
 #        Enable/Disable pathfinding using mmaps
 #        Default: 1 (enable)
 #                 0 (disable)
 #
-#    mmap.implementMapIds
-#       Enable mmap pathfinding on the listed maps
-#       List of map ids with delimiter ','
+#
+#     mmap.implementMapIds
+#        Enable mmap pathfinding on the listed maps
+#        List of map ids with delimiter ','
 # 
 #
 #    DetectPosCollision
@@ -242,6 +258,9 @@ DisconnectToleranceInterval = 0
 vmap.enableLOS = 1
 vmap.enableHeight = 1
 vmap.ignoreSpellIds = "7720"
+vmap.petLOS = 1
+vmap.totem = 1
+vmap.enableIndoorCheck = 1
 mmap.enable = 1
 mmap.implementMapIds = ""
 DetectPosCollision = 1
@@ -1092,23 +1111,15 @@ ListenRange.Yell = 300
 #       The Precentage Capital characters in a message of x length
 #       Default: 70
 #
-#   ChatFlood.RepeatMessages
-#       The max amount of repeating messages in a time of x seconds
-#       Default: 5
-#
 #   ChatFlood.RepeatTimeOut
 #       The time it takes before the Repeating Message cache gets wiped
-#       Default: 20
+#       Default: 10
 #
-#   ChatFlood.RepeatMute
-#       The time a player will be muted in Seconds after he send X amount of repeats in a time of x Seconds
-#       Default: 5
-#
-#	ChatFlood.ChatType
-#		Defines which Chat Types should be checked for Spam, sum up each numbers for a correct configuration value.
-#		Example: Say + Yell = 1 + 2 = 3
-#			Say: 1, Yell: 2, Emote(Text Only, Not /lol): 4, Channel: 8, Whisper: 16, Party: 32, Guild: 64, BG: 128
-#		Default: 1
+#    ChatFlood.ChatType
+#        Defines which Chat Types should be checked for Spam, sum up each numbers for a correct configuration value.
+#        Example: Say + Yell = 1 + 2 = 3
+#            Say: 1, Yell: 2, Emote(Text Only, Not /lol): 4, Channel: 8, Whisper: 16, Party: 32, Guild: 64, BG: 128
+#        Default: 1
 #
 #   ChatFlood.EmoteCount
 #       The amount of Emotes allowed in a time of (ChatFlood.MessageDelay) Seconds
@@ -1143,9 +1154,7 @@ ChatFlood.MessageDelay = 1
 ChatFlood.MuteTime = 10
 ChatFlood.CMessageLength = 100
 ChatFlood.CMessagePct = 70
-ChatFlood.RepeatMessages = 5
 ChatFlood.RepeatTimeOut = 20
-ChatFlood.RepeatMute = 5
 ChatFlood.ChatType = 1
 Chat.EmoteCount = 5
 Chat.EmoteDelay = 5
@@ -1548,6 +1557,23 @@ Death.Bones.BattlegroundOrArena = 1
 #        Default: 0 (disable)
 #                 1 (enable)
 #
+#    BattleGround.WSMinLegalFlagCapTime
+#        The time (in miliseconds) lower than this value is considered to be an illegal cap time
+#         Thus no points is awarded to the player
+#        Default: 40000
+#                 0 - disabled
+#
+#    BattleGround.OnIllegalFlagCap
+#        Decides what will happen to the player
+#        Default: 0 - disabled
+#                 1 - kick from battleground
+#                 2 - ban account
+#                 3 - ban account and IP
+#
+#    BattleGround.BanTime
+#        Ban time (days) on illegal flag cap (requires OnIllegalFlagCap = 2 or 3)
+#        Default: 1
+#
 ###############################################################################
 
 Battleground.CastDeserter = 1
@@ -1557,6 +1583,9 @@ Battleground.InvitationType = 0
 Battleground.PrematureReward = 1
 BattleGround.PrematureFinishTimer = 300000
 Battleground.LeaveWrathMode = 0
+BattleGround.WSMinLegalFlagCapTime = 40000
+BattleGround.OnIllegalFlagCap = 0
+BattleGround.BanTime = 1
 
 ###############################################################################
 # ARENA CONFIG
@@ -1868,21 +1897,26 @@ AutoBroadcast.Timer = 60000
 #        Default: 0 (Disabled)
 #                 1 (Enabled)
 #
+#    Warden.Ban
+#        Ban player on failed check (default 1 day)
+#        Default: 0 (Disabled)
+#                 1 (Enabled)
+#
 #    Warden.NumChecks
 #        Number of Warden checks that are sent to the client each cycle.
-#        Default:     3 - (Enabled)
-#                     0 - (Disabled)
+#        Default: 3 - (Enabled)
+#                 0 - (Disabled)
 #
 #    Warden.ClientResponseDelay
 #        Time (in seconds) before client is getting disconnecting for not responding.
-#        Default:     90 - (90 Seconds)
-#                     0 - (Disabled, client won't be kicked)
+#        Default: 90 - (90 Seconds)
+#                 0 - (Disabled, client won't be kicked)
 #
 #    Warden.ClientCheckHoldOff
 #        Time (in seconds) to wait before sending the next check request to the client.
 #                     A low number increases traffic and load on client and server side.
-#        Default:     15 - (15 Seconds)
-#                     0  - (Send check as soon as possible)
+#        Default: 15 - (15 Seconds)
+#                 0  - (Send check as soon as possible)
 #
 #    Warden.LogFile
 #        Log file of Warden Fail
@@ -1893,7 +1927,58 @@ AutoBroadcast.Timer = 60000
 
 Warden.Enabled = 0
 Warden.Kick = 0
+Warden.Ban = 0
 Warden.NumChecks = 3
 Warden.ClientResponseDelay = 90
 Warden.ClientCheckHoldOff = 15
 Warden.LogFile = "warden.log"
+
+###############################################################################
+# ANTICHEAT
+#
+#    Anticheat.Enable
+#       Description: Enables or disables the Anticheat System functionality
+#       Default:     1 - (Enabled)
+#                     0 - (Disabled)
+
+Anticheat.Enable = 1
+
+#    Anticheat.ReportsForIngameWarnings
+#       Description: How many reports the player must have to notify to GameMasters ingame when he generates a new report.
+#       Default: 70
+
+Anticheat.ReportsForIngameWarnings = 70
+
+#    Anticheat.DetectionsEnabled
+#       Description: It represents which detections are enabled.
+#
+#       SPEED_HACK_DETECTION            = 1
+#       FLY_HACK_DETECTION              = 2
+#       WALK_WATER_HACK_DETECTION       = 4
+#       JUMP_HACK_DETECTION             = 8
+#       TELEPORT_PLANE_HACK_DETECTION   = 16
+#       CLIMB_HACK_DETECTION            = 32
+#
+#       Default: 31
+
+Anticheat.DetectionsEnabled = 31
+
+#    Anticheat.MaxReportsForDailyReport
+#       Description: How many reports must the player have to make a report that it is in DB for a day (not only during the player's session).
+#       Default: 70
+
+Anticheat.MaxReportsForDailyReport = 70
+
+#    Anticheat.KickEnable
+#        Description: If ReportsForIngameWarnings Then Kick cheater!
+#        Default: 0 (Disabled)
+#                 1 (Enabled)
+
+Anticheat.KickEnable = 1
+
+#    Anticheat.BanEnable
+#        Description: If ReportsForIngameWarnings Then Ban cheater!
+#        Default: 0 (Disabled)
+#                 1 (Enabled)
+
+Anticheat.BanEnable = 1

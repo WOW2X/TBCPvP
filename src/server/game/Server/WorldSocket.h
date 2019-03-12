@@ -163,7 +163,7 @@ class WorldSocket : protected WorldHandler
         int HandleAuthSession (WorldPacket& recvPacket);
 
         // Called by ProcessIncoming() on CMSG_PING.
-        bool HandlePing(WorldPacket& recvPacket);
+        int HandlePing (WorldPacket& recvPacket);
 
         // Try to write WorldPacket to m_OutBuffer , return -1 if no space
         // Need to be called with m_OutBufferLock lock held

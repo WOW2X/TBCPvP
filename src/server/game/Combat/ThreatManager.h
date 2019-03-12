@@ -25,6 +25,7 @@
 #include "SharedDefines.h"
 #include "LinkedReference/Reference.h"
 #include "UnitEvents.h"
+#include "SQLStorage.h"
 
 #include <list>
 
@@ -34,6 +35,7 @@ class Unit;
 class Creature;
 class ThreatManager;
 struct SpellEntry;
+extern SQLStorage sSpellThreatStore;
 
 //==============================================================
 // Class to calculate the real threat based

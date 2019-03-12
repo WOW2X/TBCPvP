@@ -30,20 +30,18 @@ EndScriptData */
 
 enum
 {
-    SAY_AGGRO = -1550000,
-    SAY_SLAY1 = -1550001,
-    SAY_SLAY2 = -1550002,
-    SAY_SLAY3 = -1550003,
-    SAY_DEATH = -1550004,
-    SAY_POUNDING1 = -1550005,
-    SAY_POUNDING2 = -1550006,
+    SAY_AGGRO           = -1550000,
+    SAY_SLAY1           = -1550001,
+    SAY_SLAY2           = -1550002,
+    SAY_SLAY3           = -1550003,
+    SAY_DEATH           = -1550004,
+    SAY_POUNDING1       = -1550005,
+    SAY_POUNDING2       = -1550006,
 
-    SPELL_POUNDING = 34162,
-    SPELL_ARCANE_ORB = 34172,
-    SPELL_KNOCK_AWAY = 25778,
-    SPELL_BERSERK = 27680,
-
-    NPC_TRIGGER_BOMB = 29530
+    SPELL_POUNDING      = 34162,
+    SPELL_ARCANE_ORB    = 34172,
+    SPELL_KNOCK_AWAY    = 25778,
+    SPELL_BERSERK       = 27680,
 };
 
 struct boss_void_reaverAI : public ScriptedAI
@@ -64,6 +62,8 @@ struct boss_void_reaverAI : public ScriptedAI
 
     Position centerPos;
 
+    bool Enraged;
+
     void Reset()
     {
         Pounding_Timer = 15000;
@@ -71,6 +71,8 @@ struct boss_void_reaverAI : public ScriptedAI
         KnockAway_Timer = 30000;
         Berserk_Timer = 600000;
         Check_Timer = 3000;
+
+        Enraged = false;
 
         me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_HEALTH_LEECH, true);
         me->ApplySpellImmune(0, IMMUNITY_DISPEL, DISPEL_POISON, true);
@@ -123,7 +125,7 @@ struct boss_void_reaverAI : public ScriptedAI
         // Check_Timer
         if (Check_Timer < diff)
         {
-            if (!me->IsWithinDist3d(&centerPos, 105.0f))
+            if (!me->IsWithinDist3d(&centerPos, 135.0f))
                 EnterEvadeMode();
 
             Check_Timer = 3000;
@@ -134,12 +136,15 @@ struct boss_void_reaverAI : public ScriptedAI
         // Pounding
         if (Pounding_Timer <= diff)
         {
-            DoCast(me->getVictim(),SPELL_POUNDING);
+            DoCast(me->getVictim(), SPELL_POUNDING);
             switch (rand()%2)
             {
                 case 0: DoScriptText(SAY_POUNDING1, me); break;
                 case 1: DoScriptText(SAY_POUNDING2, me); break;
             }
+
+            if (KnockAway_Timer < 3100)
+                KnockAway_Timer = 3100;
 
              Pounding_Timer = 12000;
         }
@@ -155,17 +160,22 @@ struct boss_void_reaverAI : public ScriptedAI
             for (std::list<HostileReference *>::iterator itr = t_list.begin(); itr != t_list.end(); ++itr)
             {
                 pTarget = Unit::GetUnit(*me, (*itr)->getUnitGuid());
-                if (pTarget && pTarget->GetTypeId() == TYPEID_PLAYER && pTarget->isAlive() && pTarget->GetDistance2d(me) >= 18)
+
+                if (!pTarget)
+                    continue;
+
+                if (pTarget->GetTypeId() == TYPEID_PLAYER && pTarget->isAlive() && pTarget->GetDistance2d(me) >= 18)
                     target_list.push_back(pTarget);
 
                 pTarget = NULL;
             }
             if (target_list.size())
-                pTarget = *(target_list.begin()+rand()%target_list.size());
+                pTarget = *(target_list.begin() + rand() % target_list.size());
+            else
+                pTarget = me->getVictim();
 
             if (pTarget)
-                if (Creature* trigger = DoSpawnCreature(NPC_TRIGGER_BOMB, 0.0f, 0.0f, 10.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 40000))
-                    trigger->CastSpell(pTarget, SPELL_ARCANE_ORB, false, 0, 0, me->GetGUID());
+                me->CastSpell(pTarget, SPELL_ARCANE_ORB, false, 0, 0, me->GetGUID());
 
             ArcaneOrb_Timer = urand(3000, 4000);
         }
@@ -175,20 +185,23 @@ struct boss_void_reaverAI : public ScriptedAI
         // Single Target knock back, reduces aggro
         if (KnockAway_Timer <= diff)
         {
-            DoCast(me->getVictim(),SPELL_KNOCK_AWAY);
+            DoCast(me->getVictim(), SPELL_KNOCK_AWAY);
             KnockAway_Timer = 30000;
         }
         else
             KnockAway_Timer -= diff;
 
         //Berserk
-        if (Berserk_Timer <= diff)
+        if (!Enraged)
         {
-            DoCast(me, SPELL_BERSERK);
-            Berserk_Timer = 600000;
+            if (Berserk_Timer <= diff)
+            {
+                DoCast(me, SPELL_BERSERK);
+                Berserk_Timer = 600000;
+            }
+            else
+                Berserk_Timer -= diff;
         }
-        else
-            Berserk_Timer -= diff;
 
         DoMeleeAttackIfReady();
     }

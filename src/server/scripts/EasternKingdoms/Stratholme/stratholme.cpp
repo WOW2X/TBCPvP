@@ -254,6 +254,19 @@ struct mobs_spectral_ghostly_citizenAI : public ScriptedAI
     }
 };
 
+#define NPC_CRIMSON_HAMMERSMITH 11120
+
+bool GOHello_go_blacksmith_plans_stratholme(Player* player, GameObject* go)
+{
+    if (go->GetUseCount() == 0)
+    {
+        go->SummonCreature(NPC_CRIMSON_HAMMERSMITH, go->GetPositionX(), go->GetPositionY(), go->GetPositionZ(), 0, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30000);
+    }
+
+    go->AddUse();
+    return false;
+}
+
 CreatureAI* GetAI_mobs_spectral_ghostly_citizen(Creature* creature)
 {
     return new mobs_spectral_ghostly_citizenAI (creature);
@@ -266,6 +279,11 @@ void AddSC_stratholme()
     newscript = new Script;
     newscript->Name = "go_gauntlet_gate";
     newscript->pGOHello = &GOHello_go_gauntlet_gate;
+    newscript->RegisterSelf();
+
+    newscript = new Script;
+    newscript->Name = "go_blacksmith_plans";
+    newscript->pGOHello = &GOHello_go_blacksmith_plans_stratholme;
     newscript->RegisterSelf();
 
     newscript = new Script;

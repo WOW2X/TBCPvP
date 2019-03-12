@@ -466,7 +466,13 @@ struct boss_archimondeAI : public hyjal_trashAI
             // Give Doomfire a taste of everyone in the threatlist = more targets to chase.
             std::list<HostileReference*>::iterator itr;
             for (itr = me->getThreatManager().getThreatList().begin(); itr != me->getThreatManager().getThreatList().end(); ++itr)
-                Doomfire->AddThreat(Unit::GetUnit(*me, (*itr)->getUnitGuid()), 1.0f);
+            {
+                Unit* unit = Unit::GetUnit(*me, (*itr)->getUnitGuid());
+                if (!unit)
+                    continue;
+
+                Doomfire->AddThreat(unit, 1.0f);
+            }
             Doomfire->setFaction(me->getFaction());
             DoCast(Doomfire, SPELL_DOOMFIRE_SPAWN);
             Doomfire->CastSpell(Doomfire, SPELL_DOOMFIRE_VISUAL, true);

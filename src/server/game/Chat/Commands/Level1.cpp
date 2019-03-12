@@ -178,7 +178,7 @@ bool ChatHandler::HandleNotifyCommand(const char* args)
     if (!*args)
         return false;
 
-    std::string str = GetTrinityString(LANG_GLOBAL_NOTIFY);
+    std::string str = GetSkyFireString(LANG_GLOBAL_NOTIFY);
     str += args;
 
     WorldPacket data(SMSG_NOTIFICATION, (str.size()+1));
@@ -194,7 +194,7 @@ bool ChatHandler::HandleGMNotifyCommand(const char* args)
     if (!*args)
         return false;
 
-    std::string str = GetTrinityString(LANG_GM_NOTIFY);
+    std::string str = GetSkyFireString(LANG_GM_NOTIFY);
     str += args;
 
     WorldPacket data(SMSG_NOTIFICATION, (str.size()+1));
@@ -280,7 +280,7 @@ bool ChatHandler::HandleGMChatCommand(const char* args)
 
 std::string ChatHandler::PGetParseString(int32 entry, ...)
 {
-        const char *format = GetTrinityString(entry);
+        const char *format = GetSkyFireString(entry);
         va_list ap;
         char str [1024];
         va_start(ap, entry);
@@ -519,7 +519,7 @@ bool ChatHandler::HandleGMTicketAssignToCommand(const char* args)
 
     uint64 tarGUID = sObjectMgr->GetPlayerGUIDByName(targm.c_str());
     uint64 accid = sObjectMgr->GetPlayerAccountIdByGUID(tarGUID);
-    uint32 gmlevel = sAccountMgr->GetSecurity(accid, realmID);
+    uint32 gmlevel = sAccountMgr->GetSecurity(accid);
 
     if (!tarGUID || gmlevel == SEC_PLAYER)
     {
@@ -704,7 +704,7 @@ bool ChatHandler::HandleVisibleCommand(const char* args)
 {
     if (!*args)
     {
-        PSendSysMessage(LANG_YOU_ARE, m_session->GetPlayer()->isGMVisible() ?  GetTrinityString(LANG_VISIBLE) : GetTrinityString(LANG_INVISIBLE));
+        PSendSysMessage(LANG_YOU_ARE, m_session->GetPlayer()->isGMVisible() ?  GetSkyFireString(LANG_VISIBLE) : GetSkyFireString(LANG_INVISIBLE));
         return true;
     }
 
@@ -812,7 +812,7 @@ bool ChatHandler::HandleGPSCommand(const char* args)
         GetName(),
         (obj->GetTypeId() == TYPEID_PLAYER ? "player" : "creature"), obj->GetName(),
         (obj->GetTypeId() == TYPEID_PLAYER ? "GUID" : "Entry"), (obj->GetTypeId() == TYPEID_PLAYER ? obj->GetGUIDLow(): obj->GetEntry()));
-    sLog->outDebug(GetTrinityString(LANG_MAP_POSITION),
+    sLog->outDebug(GetSkyFireString(LANG_MAP_POSITION),
         obj->GetMapId(), (mapEntry ? mapEntry->name[sWorld->GetDefaultDbcLocale()] : "<unknown>"),
         zone_id, (zoneEntry ? zoneEntry->area_name[sWorld->GetDefaultDbcLocale()] : "<unknown>"),
         area_id, (areaEntry ? areaEntry->area_name[sWorld->GetDefaultDbcLocale()] : "<unknown>"),
@@ -923,7 +923,7 @@ bool ChatHandler::HandleSummonCommand(const char* args)
     }
     else if (uint64 guid = sObjectMgr->GetPlayerGUIDByName(name))
     {
-        PSendSysMessage(LANG_SUMMONING, name.c_str(), GetTrinityString(LANG_OFFLINE));
+        PSendSysMessage(LANG_SUMMONING, name.c_str(), GetSkyFireString(LANG_OFFLINE));
 
         // in point where GM stay
         Player::SavePositionInDB(m_session->GetPlayer()->GetMapId(),
@@ -1130,7 +1130,7 @@ bool ChatHandler::HandleRecallCommand(const char* args)
         target->m_taxi.ClearTaxiDestinations();
     }
 
-    target->Recall();
+    target->TeleportTo(target->m_recallMap, target->m_recallX, target->m_recallY, target->m_recallZ, target->m_recallO);
     return true;
 }
 
@@ -1254,7 +1254,7 @@ bool ChatHandler::HandleModifyEnergyCommand(const char* args)
     target->SetMaxPower(POWER_ENERGY, energym);
     target->SetPower(POWER_ENERGY, energy);
 
-    sLog->outDetail(GetTrinityString(LANG_CURRENT_ENERGY), target->GetMaxPower(POWER_ENERGY));
+    sLog->outDetail(GetSkyFireString(LANG_CURRENT_ENERGY), target->GetMaxPower(POWER_ENERGY));
 
     return true;
 }
@@ -1716,7 +1716,7 @@ bool ChatHandler::HandleModifyScaleCommand(const char* args)
             ChatHandler(target->ToPlayer()).PSendSysMessage(LANG_YOURS_SIZE_CHANGED, GetName(), Scale);
     }
 
-    target->SetFloatValue(OBJECT_FIELD_SCALE_X, Scale);
+    target->SetObjectScale(Scale);
 
     return true;
 }
@@ -2000,7 +2000,7 @@ bool ChatHandler::HandleModifyMoneyCommand(const char* args)
     {
         int32 newmoney = moneyuser + addmoney;
 
-        sLog->outDetail(GetTrinityString(LANG_CURRENT_MONEY), moneyuser, addmoney, newmoney);
+        sLog->outDetail(GetSkyFireString(LANG_CURRENT_MONEY), moneyuser, addmoney, newmoney);
         if (newmoney <= 0)
         {
             PSendSysMessage(LANG_YOU_TAKE_ALL_MONEY, target->GetName());
@@ -2025,7 +2025,7 @@ bool ChatHandler::HandleModifyMoneyCommand(const char* args)
         target->ModifyMoney(addmoney);
     }
 
-    sLog->outDetail(GetTrinityString(LANG_NEW_MONEY), moneyuser, addmoney, target->GetMoney());
+    sLog->outDetail(GetSkyFireString(LANG_NEW_MONEY), moneyuser, addmoney, target->GetMoney());
 
     return true;
 }
@@ -2261,7 +2261,7 @@ bool ChatHandler::HandleWhispersCommand(const char* args)
 {
     if (!*args)
     {
-        PSendSysMessage(LANG_COMMAND_WHISPERACCEPTING, m_session->GetPlayer()->isAcceptWhispers() ?  GetTrinityString(LANG_ON) : GetTrinityString(LANG_OFF));
+        PSendSysMessage(LANG_COMMAND_WHISPERACCEPTING, m_session->GetPlayer()->isAcceptWhispers() ?  GetSkyFireString(LANG_ON) : GetSkyFireString(LANG_OFF));
         return true;
     }
 
@@ -2447,7 +2447,7 @@ bool ChatHandler::HandleNameTeleCommand(const char * args)
     }
     else if (uint64 guid = sObjectMgr->GetPlayerGUIDByName(name.c_str()))
     {
-        PSendSysMessage(LANG_TELEPORTING_TO, name.c_str(), GetTrinityString(LANG_OFFLINE), tele->name.c_str());
+        PSendSysMessage(LANG_TELEPORTING_TO, name.c_str(), GetSkyFireString(LANG_OFFLINE), tele->name.c_str());
         Player::SavePositionInDB(tele->mapId, tele->position_x, tele->position_y, tele->position_z, tele->orientation,
             sMapMgr->GetZoneId(tele->mapId, tele->position_x, tele->position_y, tele->position_z), guid);
     }
@@ -2845,56 +2845,5 @@ bool ChatHandler::HandleDrunkCommand(const char* args)
 
     m_session->GetPlayer()->SetDrunkValue(drunkMod);
 
-    return true;
-}
-
-// Mute the character from all public correspondence
-bool ChatHandler::HandleCharacterMuteCommand(const char* args)
-{
-    if (!*args)
-        return false;
-
-    char *character_name_str = strtok((char*)args," ");
-    if (!character_name_str)
-        return false;
-
-    std::string character_name = character_name_str;
-    if (!normalizePlayerName(character_name))
-        return false;
-
-    uint64 character_guid;
-    Player *player = sObjectMgr->GetPlayer(character_name.c_str());
-    if (player)
-        player->SetAtLoginFlag(AT_LOGIN_MUTED);
-    else
-    {
-        character_guid = sObjectMgr->GetPlayerGUIDByName(character_name);
-        if (!character_guid)
-        {
-            PSendSysMessage(LANG_NO_PLAYER, character_name.c_str());
-            SetSentErrorMessage(true);
-            return false;
-        }
-
-        uint8 at_login = 0;
-        QueryResult_AutoPtr resultChar = CharacterDatabase.PQuery("SELECT at_login FROM characters WHERE guid = '%u'", GUID_LOPART(character_guid));
-        if (resultChar)
-        {
-            Field *fields = resultChar->Fetch();
-            at_login = fields[0].GetUInt8();
-        }
-        if (at_login & AT_LOGIN_MUTED) // Character already muted, remove it
-        {
-            at_login &= ~ AT_LOGIN_MUTED;
-            PSendSysMessage(LANG_UNMUTE_CHAR, character_name.c_str());
-        }
-        else
-        {
-            at_login |= AT_LOGIN_MUTED;
-            PSendSysMessage(LANG_MUTE_CHAR, character_name.c_str());
-        }
-        CharacterDatabase.PExecute("UPDATE characters SET at_login = '%u' WHERE guid = '%u'", at_login, GUID_LOPART(character_guid));
-
-    }
     return true;
 }

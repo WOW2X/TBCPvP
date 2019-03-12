@@ -18,6 +18,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AnticheatMgr.h"
 #include "WorldSocket.h"                                    // must be first to make ACE happy with ACE includes in it
 #include "Common.h"
 #include "DatabaseEnv.h"
@@ -40,32 +41,14 @@
 #include "WardenWin.h"
 #include "WardenMac.h"
 #include "TempEventMgr.h"
-#include "AnticheatMgr.h"
 
 // WorldSession constructor
 WorldSession::WorldSession(uint32 id, WorldSocket *sock, uint32 sec, uint8 expansion, time_t mute_time, LocaleConstant locale) :
-    LookingForGroup_auto_join(false),
-    LookingForGroup_auto_add(false),
-    m_muteTime(mute_time),
-    _player(NULL),
-    m_Socket(sock),
-    _security(sec),
-    _accountId(id),
-    m_expansion(expansion),
-    m_sessionDbcLocale(sWorld->GetAvailableDbcLocale(locale)),
-    m_sessionDbLocaleIndex(sObjectMgr->GetIndexForLocale(locale)),
-    _logoutTime(0),
-    m_inQueue(false),
-    m_playerLoading(false),
-    m_playerLogout(false),
-    m_playerRecentlyLogout(false),
-    m_playerSave(false),
-    m_latency(0),
-    m_clientTimeDelay(0),
-    m_timeOutTime(0),
-    m_Warden(NULL),
-    m_expireTime(60000),
-    m_forceExit(false)
+LookingForGroup_auto_join(false), LookingForGroup_auto_add(false), m_muteTime(mute_time),
+_player(NULL), m_Socket(sock), _security(sec), _accountId(id), m_expansion(expansion),
+m_sessionDbcLocale(sWorld->GetAvailableDbcLocale(locale)), m_sessionDbLocaleIndex(sObjectMgr->GetIndexForLocale(locale)),
+_logoutTime(0), m_inQueue(false), m_playerLoading(false), m_playerLogout(false), m_playerRecentlyLogout(false), m_playerSave(false),
+m_latency(0), m_timeOutTime(0), m_Warden(NULL), m_expireTime(20000), m_forceExit(false), _IP("")
 {
     if (sock)
     {
@@ -112,6 +95,29 @@ void WorldSession::SizeError(WorldPacket const& packet, uint32 size) const
 char const* WorldSession::GetPlayerName() const
 {
     return GetPlayer() ? GetPlayer()->GetName() : "<none>";
+}
+
+// Get the IP-address
+char const* WorldSession::GetIP()
+{
+    // Fetch from DB
+    if (_IP.empty())
+    {
+        QueryResult_AutoPtr result = LoginDatabase.PQuery("SELECT a.last_ip "
+
+            "FROM account a "
+            "LEFT JOIN account_access aa "
+            "ON (a.id = aa.id) "
+            "WHERE a.id = '%u'", _accountId);
+
+        if (result)
+        {
+            Field* fields = result->Fetch();
+            _IP = fields[0].GetCppString();
+        }
+    }
+
+    return _IP.c_str();
 }
 
 // Send a packet to the client
@@ -437,11 +443,6 @@ void WorldSession::LogoutPlayer(bool Save)
         // If the player is in a group (or invited), remove him. If the group if then only 1 person, disband the group.
         _player->UninviteFromGroup();
 
-        // remove player from the group if he is:
-        // a) in group; b) not in raid group; c) logging out normally (not being kicked or disconnected)
-        if (_player->GetGroup() && !_player->GetGroup()->isRaidGroup() && m_Socket)
-            _player->RemoveFromGroup();
-
         // Send update to group
         if (_player->GetGroup())
             _player->GetGroup()->SendUpdate();
@@ -533,7 +534,7 @@ void WorldSession::SendNotification(const char *format, ...)
 
 void WorldSession::SendNotification(int32 string_id, ...)
 {
-    char const* format = GetTrinityString(string_id);
+    char const* format = GetSkyFireString(string_id);
     if (format)
     {
         va_list ap;
@@ -549,9 +550,9 @@ void WorldSession::SendNotification(int32 string_id, ...)
     }
 }
 
-const char * WorldSession::GetTrinityString(int32 entry) const
+const char * WorldSession::GetSkyFireString(int32 entry) const
 {
-    return sObjectMgr->GetTrinityString(entry, GetSessionDbLocaleIndex());
+    return sObjectMgr->GetSkyFireString(entry, GetSessionDbLocaleIndex());
 }
 
 void WorldSession::Handle_NULL(WorldPacket& recvPacket)
@@ -849,4 +850,3 @@ uint32 WorldSession::GetMaxPacketCounterAllowed(uint16 opcode) const
 
     return maxPacketCounterAllowed;
 }
-

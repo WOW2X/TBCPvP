@@ -209,6 +209,9 @@ struct boss_talon_king_ikissAI : public ScriptedAI
             Blink_Timer = 35000+rand()%5000;
         } else Blink_Timer -= diff;
 
+        if (me->GetDistance2d(me->GetHomePosition().GetPositionX(), me->GetHomePosition().GetPositionY()) > 70)
+            EnterEvadeMode();
+
         if (!Blink)
             DoMeleeAttackIfReady();
     }

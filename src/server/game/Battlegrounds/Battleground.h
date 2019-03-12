@@ -108,6 +108,14 @@ enum BattleGroundBuffObjects
     BG_OBJECTID_BERSERKERBUFF_ENTRY = 179905
 };
 
+enum BattlegroundOnIllegalFlagCap
+{
+    BG_CHEAT_DISABLED               = 0,
+    BG_CHEAT_KICK_FROM_BATTLEGROUND = 1,
+    BG_CHEAT_BAN_ACCOUNT            = 2,
+    BG_CHEAT_BAN_ACCOUNT_IP         = 3,
+};
+
 const uint32 Buff_Entries[3] = { BG_OBJECTID_SPEEDBUFF_ENTRY, BG_OBJECTID_REGENBUFF_ENTRY, BG_OBJECTID_BERSERKERBUFF_ENTRY };
 
 enum BattleGroundStatus
@@ -192,9 +200,9 @@ enum ScoreType
 enum ArenaType
 {
     ARENA_TYPE_2v2          = 2,
-    ARENA_TYPE_SOLO_3v3     = 0, // Original 3v3 bracket
     ARENA_TYPE_3v3          = 3,
-    ARENA_TYPE_5v5          = 5
+    ARENA_TYPE_5v5          = 5,
+    ARENA_TYPE_SOLO_3v3     = 6
 };
 
 enum BattleGroundType
@@ -520,9 +528,10 @@ class BattleGround
 
         void DoorOpen(uint32 type);
         void DoorClose(uint32 type);
-        const char *GetTrinityString(int32 entry);
+        const char *GetSkyFireString(int32 entry);
 
         virtual bool HandlePlayerUnderMap(Player * /*plr*/) { return false; }
+        void HandleIllegalFlagCapture(Player* source, const std::string bgName);
 
         // since arenas can be AvA or Hvh, we have to get the "temporary" team of a player
         uint32 GetPlayerTeam(uint64 guid);

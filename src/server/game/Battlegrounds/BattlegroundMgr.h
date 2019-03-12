@@ -220,7 +220,7 @@ class BattleGroundMgr
         void RemoveBattleGround(uint32 instanceID);
 
         void CreateInitialBattleGrounds();
-        void DeleteAlllBattleGrounds();
+        void DeleteAllBattleGrounds();
 
         void SendToBattleGround(Player *pl, uint32 bgTypeId);
 
@@ -238,7 +238,7 @@ class BattleGroundMgr
         uint32 BGTemplateId(uint32 bgQueueTypeId) const;
         uint8 BGArenaType(uint32 bgQueueTypeId) const;
 
-        uint32 GetMaxRatingDifference() const {return m_MaxRatingDifference;}
+        uint32 GetMaxRatingDifference() const;
         uint32 GetRatingDiscardTimer() const {return m_RatingDiscardTimer;}
 
         void InitAutomaticArenaPointDistribution();

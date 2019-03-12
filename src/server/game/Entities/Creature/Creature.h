@@ -263,7 +263,6 @@ struct CreatureData
     bool  is_dead;
     uint8 movementType;
     uint8 spawnMask;
-    uint32 phaseMask;
     uint32 npcflag;
     uint32 unit_flags;                                    // enum UnitFlags mask values
     uint32 dynamicflags;
@@ -368,11 +367,8 @@ struct VendorItemData
 
 struct VendorItemCount
 {
-    VendorItemCount(uint32 _item, uint32 _count)
-        : itemId(_item), count(_count), lastIncrementTime(time(nullptr)) {}
-
-    VendorItemCount(uint32 _item, uint32 _count, time_t _lastIncrementTime)
-        : itemId(_item), count(_count), lastIncrementTime(_lastIncrementTime) {}
+    explicit VendorItemCount(uint32 _item, uint32 _count)
+        : itemId(_item), count(_count), lastIncrementTime(time(NULL)) {}
 
     uint32 itemId;
     uint32 count;
@@ -413,8 +409,6 @@ typedef std::map<uint32, time_t> CreatureSpellCooldowns;
 
 #define MAX_VENDOR_ITEMS 255                                // Limitation in item count field size in SMSG_LIST_INVENTORY
 
-#define CREATURE_DEATH_DELAY 250
-
 class Creature : public Unit, public GridObject<Creature>
 {
     public:
@@ -427,7 +421,7 @@ class Creature : public Unit, public GridObject<Creature>
 
         void DisappearAndDie();
 
-        bool Create(uint32 guidlow, Map *map, uint32 phaseMask, uint32 Entry, uint32 team, float x, float y, float z, float ang, const CreatureData *data = NULL);
+        bool Create(uint32 guidlow, Map *map, uint32 Entry, uint32 team, float x, float y, float z, float ang, const CreatureData *data = NULL);
         bool LoadCreaturesAddon(bool reload = false);
         void SelectLevel(const CreatureTemplate *cinfo);
         void LoadEquipment(uint32 equip_entry, bool force=false);
@@ -509,8 +503,6 @@ class Creature : public Unit, public GridObject<Creature>
         void AddCreatureSpellCooldown(uint32 spellid);
         bool HasSpellCooldown(uint32 spell_id) const;
         bool HasCategoryCooldown(uint32 spell_id) const;
-        void LockSpellSchool(SpellSchoolMask idSchoolMask, uint32 unTimeMs) override;
-        uint32 GetCreatureSpellCooldownDelay(uint32 spellId) const;
 
         bool HasSpell(uint32 spellID) const;
 
@@ -525,9 +517,6 @@ class Creature : public Unit, public GridObject<Creature>
         void UpdateDamagePhysical(WeaponAttackType attType);
         uint32 GetCurrentEquipmentId() { return m_equipmentId; }
         float GetSpellDamageMod(int32 Rank);
-
-        void LoadVendorItemCount();
-        void SaveVendorItemCount();
 
         VendorItemData const* GetVendorItems() const;
         uint32 GetVendorItemCurrentCount(VendorItem const* vItem);
@@ -562,15 +551,17 @@ class Creature : public Unit, public GridObject<Creature>
         bool LoadFromDB(uint32 guid, Map *map);
         void SaveToDB();
                                                             // overwrited in Pet
-        virtual void SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask);
+        virtual void SaveToDB(uint32 mapid, uint8 spawnMask);
         virtual void DeleteFromDB();                        // overwrited in Pet
 
         Loot loot;
         bool lootForPickPocketed;
         bool lootForBody;
         Player *GetLootRecipient() const;
-        bool hasLootRecipient() const { return m_lootRecipient != 0; }
-
+        Group *GetLootRecipientGroup() const;
+        /*Returns true if this creature is tapped by the player or by a member of his group.*/
+        bool hasLootRecipient() const { return m_lootRecipient || m_lootRecipientGroup; }
+        bool isTappedBy(Player const* player) const;
         void SetLootRecipient (Unit* unit);
         void AllLootRemovedFromCorpse();
 
@@ -582,6 +573,7 @@ class Creature : public Unit, public GridObject<Creature>
         CreatureSpellCooldowns m_CreatureCategoryCooldowns;
         uint32 m_GlobalCooldown;
 
+        bool canSeeOrDetect(Unit const* u, bool detect, bool inVisibleList = false, bool is3dDistance = true) const;
         bool canStartAttack(Unit const* u) const;
         float GetAttackDistance(Unit const* pl) const;
 
@@ -601,7 +593,8 @@ class Creature : public Unit, public GridObject<Creature>
         Cell const& GetCurrentCell() const { return m_currentCell; }
         void SetCurrentCell(Cell const& cell) { m_currentCell = cell; }
 
-        void HandleDelayedDeath(uint32 deathDelay);
+        bool IsVisibleInGridForPlayer(Player const* pl) const;
+
         void RemoveCorpse(bool setSpawnTime = true);
         void ForcedDespawn(uint32 timeMSToDespawn = 0);
 
@@ -670,12 +663,7 @@ class Creature : public Unit, public GridObject<Creature>
         void ResetPlayerDamageReq() { m_PlayerDamageReq = GetHealth() / 2; }
         uint32 m_PlayerDamageReq;
 
-        float GetCombatDistance() const { return m_CombatDistance; }
-        void SetCombatDistance(float combatDistance) { m_CombatDistance = combatDistance; }
-
-        float m_SightDistance;
-
-        bool isVisibleForInState(WorldObject const* seer) const;
+        float m_SightDistance, m_CombatDistance;
     protected:
         bool CreateFromProto(uint32 guidlow, uint32 Entry, uint32 team, const CreatureData *data = NULL);
         bool InitEntry(uint32 entry, uint32 team=ALLIANCE, const CreatureData* data=NULL);
@@ -690,6 +678,7 @@ class Creature : public Unit, public GridObject<Creature>
 
         uint32 m_lootMoney;
         uint64 m_lootRecipient;
+        uint32 m_lootRecipientGroup;
 
         // Timers
         uint32 m_corpseRemoveTime;                          // (msecs)timer for death or corpse disappearance
@@ -697,7 +686,6 @@ class Creature : public Unit, public GridObject<Creature>
         uint32 m_respawnDelay;                              // (secs) delay between corpse disappearance and respawning
         uint32 m_corpseDelay;                               // (secs) delay between death and corpse disappearance
         float m_respawnradius;
-        uint32 m_deathDelayTimer;
 
         uint8 m_emoteState;
         uint32 m_summonMask;
@@ -715,8 +703,6 @@ class Creature : public Unit, public GridObject<Creature>
         bool m_regenHealth;
         bool m_AI_locked;
         bool m_isDeadByDefault;
-
-        float m_CombatDistance;
 
         SpellSchoolMask m_meleeDamageSchoolMask;
         uint32 m_originalEntry;

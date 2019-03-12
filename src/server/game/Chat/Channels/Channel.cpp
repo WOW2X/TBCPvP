@@ -775,7 +775,7 @@ void Channel::SendToAll(WorldPacket *data, uint64 p)
 {
     for (PlayerList::const_iterator i = players.begin(); i != players.end(); ++i)
     {
-        Player *plr = sObjectMgr->GetPlayer(i->first);
+        Player *plr = sObjectMgr->GetPlayer(i->first, true);
         if (plr)
         {
             if (!p || !plr->GetSocial()->HasIgnore(GUID_LOPART(p)))

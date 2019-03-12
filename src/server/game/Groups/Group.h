@@ -145,7 +145,7 @@ class Group
         typedef std::list<MemberSlot> MemberSlotList;
         typedef MemberSlotList::const_iterator member_citerator;
 
-        typedef std::unordered_map< uint32 /*mapId*/, InstanceGroupBind> BoundInstancesMap;
+        typedef UNORDERED_MAP< uint32 /*mapId*/, InstanceGroupBind> BoundInstancesMap;
     protected:
         typedef MemberSlotList::iterator member_witerator;
         typedef UNORDERED_SET<Player*> InvitesList;
@@ -165,6 +165,8 @@ class Group
         void   RemoveAllInvites();
         bool   AddLeaderInvite(Player* player);
         bool   AddMember(const uint64 &guid, const char* name);
+
+        void   SendObjectUpdateToMembers(Player* player);
                                                             // method: 0=just remove, 1=kick
         uint32 RemoveMember(const uint64 &guid, const uint8 &method);
         void   ChangeLeader(const uint64 &guid);
@@ -335,14 +337,13 @@ class Group
         BoundInstancesMap& GetBoundInstances(uint8 difficulty) { return m_boundInstances[difficulty]; }
 
         // FG: evil hacks
-        void BroadcastGroupUpdate();
+        void BroadcastGroupUpdate(void);
 
     protected:
         bool _addMember(const uint64 &guid, const char* name, bool isAssistant=false);
         bool _addMember(const uint64 &guid, const char* name, bool isAssistant, uint8 group);
         bool _removeMember(const uint64 &guid);             // returns true if leader has changed
         void _setLeader(const uint64 &guid);
-        void _updateLeaderFlag(const bool remove = false);
 
         void _removeRolls(const uint64 &guid);
 

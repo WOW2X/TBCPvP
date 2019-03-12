@@ -568,11 +568,11 @@ struct npc_calliardAI : public ScriptedAI
         {
             me->Say(RAND<const char*>(CALLIARD_SAY1, CALLIARD_SAY2, CALLIARD_SAY3), 0, 0);
             Timer = urand(60000, 180000);
-        } 
+        }
         else
             Timer -= diff;
 
-    }    
+    }
 };
 
 CreatureAI* GetAI_npc_calliard(Creature *creature)
@@ -584,7 +584,7 @@ bool GossipHello_npc_calliard(Player* player, Creature* creature)
 {
     player->ADD_GOSSIP_ITEM(0, GOSSIP_ITEM_MIDNIGHT, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
     player->SEND_GOSSIP_MENU(25042, creature->GetGUID());
-    
+
     return true;
 }
 
@@ -610,7 +610,7 @@ bool GossipHello_npc_hastings(Player* player, Creature* creature)
 {
     player->ADD_GOSSIP_ITEM(0, GOSSIP_ITEM_HELP, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
     player->SEND_GOSSIP_MENU(25039, creature->GetGUID());
-    
+
     return true;
 }
 
@@ -863,4 +863,3 @@ void AddSC_karazhan()
     newscript->GetAI = &GetAI_npc_image_of_medivh;
     newscript->RegisterSelf();
 }
-

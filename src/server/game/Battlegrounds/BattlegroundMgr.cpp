@@ -110,7 +110,7 @@ void BattleGroundQueue::EligibleGroups::Init(BattleGroundQueue::QueuedGroupsList
                 (*itr)->Players.size() <= MaxPlayers &&   // the group must fit in the bg
                 (!excludeTeam || (*itr)->ArenaTeamId != excludeTeam) && // if excludeTeam is specified, leave out those arena team ids
                 (!IsRated || (*itr)->Players.size() == MaxPlayers) &&   // if rated, then pass only if the player count is exact NEEDS TESTING! (but now this should never happen)
-                (!DisregardTime || (*itr)->JoinTime <= DisregardTime              // pass if disregard time is greater than join time
+                ((*itr)->JoinTime < DisregardTime                   // pass if disregard time is greater than join time
                     || (*itr)->ArenaTeamRating == 0                 // pass if no rating info
                     || ((*itr)->ArenaTeamRating >= MinRating       // pass if matches the rating range
                     && (*itr)->ArenaTeamRating <= MaxRating)))
@@ -245,7 +245,7 @@ void BattleGroundQueue::AddPlayer(Player *plr, GroupQueueInfo *ginfo)
                     PlayerQueueInfo& qPlayerInfo = m_QueuedPlayers[queue_id][_player->GetGUID()];
                     if (qPlayerInfo.GroupInfo->IsRated)
                     {
-                        /*if (ginfo->ArenaType == ARENA_TYPE_SOLO_3v3)
+                        if (ginfo->ArenaType == ARENA_TYPE_SOLO_3v3)
                         {
                             if (_player->GetTalentSpecialization() == TALENT_SPECIALIZATION_HEALER)
                                 qRatedAlliance++;
@@ -253,16 +253,16 @@ void BattleGroundQueue::AddPlayer(Player *plr, GroupQueueInfo *ginfo)
                                 qRatedHorde++;
                         }
                         else // normal team queues
-                        {*/
+                        {
                             if (_player->GetTeam() == ALLIANCE)
                                 qRatedAlliance++;
                             else
                                 qRatedHorde++;
-                        //}
+                        }
                     }
                     else // skirmish
                     {
-                        /*if (ginfo->ArenaType == ARENA_TYPE_SOLO_3v3)
+                        if (ginfo->ArenaType == ARENA_TYPE_SOLO_3v3)
                         {
                             if (_player->GetTalentSpecialization() == TALENT_SPECIALIZATION_HEALER)
                                 qAlliance++;
@@ -270,12 +270,12 @@ void BattleGroundQueue::AddPlayer(Player *plr, GroupQueueInfo *ginfo)
                                 qHorde++;
                         }
                         else // normal queues
-                        {*/
+                        {
                             if (_player->GetTeam() == ALLIANCE)
                                 qAlliance++;
                             else
                                 qHorde++;
-                        //}
+                        }
                     }
                 }
                 else // battlegrounds
@@ -294,12 +294,12 @@ void BattleGroundQueue::AddPlayer(Player *plr, GroupQueueInfo *ginfo)
             if (bg->isArena())
             {
                 bool isRated = ginfo->IsRated;
-                /*if (ginfo->ArenaType == ARENA_TYPE_SOLO_3v3)
+                if (ginfo->ArenaType == ARENA_TYPE_SOLO_3v3)
                 {
                     ChatHandler(plr).PSendSysMessage(LANG_BG_SOLO_QUEUE_ANNOUNCE_SELF,
                         bgName, q_min_level, q_max_level, (isRated ? qRatedHorde : qHorde), (isRated ? qRatedAlliance : qAlliance));
                     return;
-                }*/
+                }
 
                 uint32 needAlliance = (MinPlayers < (isRated ? qRatedAlliance : qAlliance)) ? 0 : MinPlayers - (isRated ? qRatedAlliance : qAlliance);
                 uint32 needHorde = (MinPlayers < (isRated ? qRatedHorde : qHorde)) ? 0 : MinPlayers - (isRated ? qRatedHorde : qHorde);
@@ -810,14 +810,12 @@ void BattleGroundQueue::Update(uint32 bgTypeId, uint32 queue_id, uint8 arenatype
     // arenaRating is the rating of the latest joined team
     uint32 arenaMinRating = (arenaRating <= sBattleGroundMgr->GetMaxRatingDifference()) ? 0 : arenaRating - sBattleGroundMgr->GetMaxRatingDifference();
     // if no rating is specified, set maxrating to 0
-    uint32 arenaMaxRating = (arenaRating == 0)? 0 : arenaRating + sBattleGroundMgr->GetMaxRatingDifference();
-    uint32 discardTime = 0;
+    uint32 arenaMaxRating = (arenaRating == 0) ? 0 : arenaRating + sBattleGroundMgr->GetMaxRatingDifference();
     // if max rating difference is set and the time past since server startup is greater than the rating discard time
     // (after what time the ratings aren't taken into account when making teams) then
     // the discard time is current_time - time_to_discard, teams that joined after that, will have their ratings taken into account
     // else leave the discard time on 0, this way all ratings will be discarded
-    if (sBattleGroundMgr->GetMaxRatingDifference() && getMSTime() >= sBattleGroundMgr->GetRatingDiscardTimer())
-        discardTime = getMSTime() - sBattleGroundMgr->GetRatingDiscardTimer();
+    int32 discardTime = getMSTime() - sBattleGroundMgr->GetRatingDiscardTimer();
 
     // try to build the selection pools
     bool bAllyOK = BuildSelectionPool(bgTypeId, queue_id, MinPlayersPerTeam, MaxPlayersPerTeam, NORMAL_ALLIANCE, arenatype, isRated, arenaMinRating, arenaMaxRating, discardTime);
@@ -1198,14 +1196,15 @@ BattleGroundMgr::BattleGroundMgr()
 
 BattleGroundMgr::~BattleGroundMgr()
 {
-    DeleteAlllBattleGrounds();
+    DeleteAllBattleGrounds();
 }
 
-void BattleGroundMgr::DeleteAlllBattleGrounds()
+void BattleGroundMgr::DeleteAllBattleGrounds()
 {
     for (BattleGroundSet::iterator itr = m_BattleGrounds.begin(); itr != m_BattleGrounds.end();)
     {
         BattleGround * bg = itr->second;
+        bg->EndNow();
         m_BattleGrounds.erase(itr++);
         delete bg;
     }
@@ -1256,11 +1255,14 @@ void BattleGroundMgr::Update(time_t diff)
     {
         if (m_AutoDistributionTimeChecker < diff)
         {
-            if (time(NULL) > GetNextArenaDistributionTime())
+            if (uint64 nextDistributionTime = GetNextArenaDistributionTime()) // ensure is not 0 or cancelled
             {
-                DistributeArenaPoints();
-                m_NextAutoDistributionTime = time(NULL) + BATTLEGROUND_ARENA_POINT_DISTRIBUTION_DAY * sWorld->getConfig(CONFIG_ARENA_AUTO_DISTRIBUTE_INTERVAL_DAYS);
-                CharacterDatabase.PExecute("UPDATE saved_variables SET NextArenaPointDistributionTime = '"UI64FMTD"'", GetNextArenaDistributionTime());
+                if (time(NULL) > nextDistributionTime)
+                {
+                    DistributeArenaPoints();
+                    m_NextAutoDistributionTime = time(NULL) + BATTLEGROUND_ARENA_POINT_DISTRIBUTION_DAY * sWorld->getConfig(CONFIG_ARENA_AUTO_DISTRIBUTE_INTERVAL_DAYS);
+                    CharacterDatabase.PExecute("UPDATE saved_variables SET NextArenaPointDistributionTime = '"UI64FMTD"'", m_NextAutoDistributionTime);
+                }
             }
             m_AutoDistributionTimeChecker = 600000; // check 10 minutes
         }
@@ -1811,8 +1813,9 @@ void BattleGroundMgr::InitAutomaticArenaPointDistribution()
 
             if (wstime < curtime)
             {
+                sLog->outDebug("Next arena point distribution in past (crash?), resetting it to now.");
                 m_NextAutoDistributionTime = curtime;
-                sLog->outDebug("Next arena point distribution in past (crash?), resetting it now.");
+                CharacterDatabase.PExecute("UPDATE saved_variables SET NextArenaPointDistributionTime = '" UI64FMTD "'", m_NextAutoDistributionTime);
             }
             else
                 m_NextAutoDistributionTime = wstime;
@@ -1843,6 +1846,8 @@ void BattleGroundMgr::DistributeArenaPoints()
         if (ArenaTeam * at = team_itr->second)
             at->UpdateArenaPointsHelper(PlayerPoints);
 
+    CharacterDatabase.BeginTransaction();
+
     // Cycle that gives points to all players
     for (std::map<uint32, uint32>::iterator plr_itr = PlayerPoints.begin(); plr_itr != PlayerPoints.end(); ++plr_itr)
     {
@@ -1852,6 +1857,8 @@ void BattleGroundMgr::DistributeArenaPoints()
         else // Update database
             CharacterDatabase.PExecute("UPDATE characters SET arenaPoints = arenaPoints + '%u' WHERE guid = '%u'", plr_itr->second, plr_itr->first);
     }
+
+    CharacterDatabase.CommitTransaction();
 
     PlayerPoints.clear();
 
@@ -2065,3 +2072,12 @@ void BattleGroundMgr::SetHolidayWeekends(uint32 mask)
     }
 }
 
+uint32 BattleGroundMgr::GetMaxRatingDifference() const
+{
+    // fixes some bug... forgot what. can't be 0 for some check
+    uint32 diff = sWorld->getConfig(CONFIG_ARENA_MAX_RATING_DIFFERENCE);
+    if (diff == 0)
+        diff = 5000;
+
+    return diff;
+}

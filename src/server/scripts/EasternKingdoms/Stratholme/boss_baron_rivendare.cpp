@@ -107,7 +107,8 @@ struct boss_baron_rivendareAI : public ScriptedAI
 
     void AttackStart(Unit* who)
     {
-        if (instance)//can't use entercombat(), boss' dmg aura sets near players in combat, before entering the room's door
+        // can't use entercombat(), boss' dmg aura sets near players in combat, before entering the room's door
+        if (instance && instance->GetData(TYPE_BARON) == NOT_STARTED)
             instance->SetData(TYPE_BARON, IN_PROGRESS);
         ScriptedAI::AttackStart(who);
     }

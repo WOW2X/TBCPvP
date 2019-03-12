@@ -15,10 +15,10 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/dep/g3dlite/include
   ${CMAKE_SOURCE_DIR}/src/server/shared
   ${CMAKE_SOURCE_DIR}/src/server/shared/Debugging
-  ${CMAKE_SOURCE_DIR}/src/server/shared/Dynamic  
+  ${CMAKE_SOURCE_DIR}/src/server/shared/Dynamic
   ${CMAKE_SOURCE_DIR}/src/server/collision/Maps
   ${CMAKE_SOURCE_DIR}/src/server/collision/Models
-  ${CMAKE_SOURCE_DIR}/src/framework  
+  ${CMAKE_SOURCE_DIR}/src/framework
   ${CMAKE_SOURCE_DIR}/src/framework/Platform
   ${ACE_INCLUDE_DIR}
   ${ZLIB_INCLUDE_DIR}
@@ -33,6 +33,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 endif()
 
 target_link_libraries(vmap_assembler
+  ${JEMALLOC_LIBRARY}
   collision
   g3dlib
   ${ZLIB_LIBRARIES}

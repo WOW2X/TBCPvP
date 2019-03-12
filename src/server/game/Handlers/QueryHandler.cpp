@@ -34,6 +34,8 @@
 #include "Pet.h"
 #include "ObjectAccessor.h"
 
+#define log2(n) (log(n) / log(2))
+
 void WorldSession::SendNameQueryOpcode(Player *p)
 {
     if (!p)
@@ -42,7 +44,7 @@ void WorldSession::SendNameQueryOpcode(Player *p)
     std::stringstream nameData;
     if (!p->GetUInt32Value(PLAYER_CHOSEN_TITLE)) // Only add if no real title selected
     {
-        uint32 titleEntry = 0;
+        uint32 titleEntry = log2(p->GetActiveCustomTitle());
         if (titleTable[titleEntry].isPrefixTitle)
         {
             nameData << titleTable[titleEntry].titleName;
@@ -109,7 +111,7 @@ void WorldSession::SendNameQueryOpcodeFromDBCallBack(QueryResult_AutoPtr result,
     std::string name = fields[1].GetCppString();
     uint32 field     = 0;
     if (name == "")
-        name         = session->GetTrinityString(LANG_NON_EXIST_CHARACTER);
+        name         = session->GetSkyFireString(LANG_NON_EXIST_CHARACTER);
     else
         field        = fields[2].GetUInt32();
 

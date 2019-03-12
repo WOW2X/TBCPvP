@@ -104,6 +104,8 @@ template<> void addUnitState(Creature *obj, CellPair const& cell_pair)
     Cell cell(cell_pair);
 
     obj->SetCurrentCell(cell);
+    if (obj->isSpiritService())
+        obj->setDeathState(DEAD);
 }
 
 template <class T>
@@ -260,6 +262,10 @@ ObjectGridUnloader::Visit(GridRefManager<T> &m)
     while (!m.isEmpty())
     {
         T *obj = m.getFirst()->getSource();
+
+        if (!obj)
+            continue;
+
         // if option set then object already saved at this moment
         if (!sWorld->getConfig(CONFIG_SAVE_RESPAWN_TIME_IMMEDIATELY))
             obj->SaveRespawnTime();

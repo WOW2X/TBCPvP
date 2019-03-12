@@ -31,8 +31,6 @@ EndScriptData */
 #define MAX_ENCOUNTER 6
 #define SPELL_SCALDINGWATER 37284
 #define MOB_COILFANG_FRENZY 21508
-#define TRASHMOB_COILFANG_PRIESTESS 21220  //6*2
-#define TRASHMOB_COILFANG_SHATTERER 21301  //6*3
 
 #define MIN_KILLS 30
 
@@ -145,7 +143,9 @@ struct instance_serpentshrine_cavern : public ScriptedInstance
         //Water checks
         if (WaterCheckTimer <= diff)
         {
-            if (TrashCount >= MIN_KILLS)
+            if (GetData(DATA_THELURKERBELOWEVENT) == DONE)
+                Water = WATERSTATE_NONE;
+            else if (TrashCount >= MIN_KILLS)
                 Water = WATERSTATE_SCALDING;
             else
                 Water = WATERSTATE_FRENZY;
@@ -153,11 +153,12 @@ struct instance_serpentshrine_cavern : public ScriptedInstance
             Map::PlayerList const &PlayerList = instance->GetPlayers();
             if (PlayerList.isEmpty())
                 return;
+
             for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
             {
                 if (Player* player = i->getSource())
                 {
-                    if (player->isAlive() && /*i->getSource()->GetPositionZ() <= -21.434931f*/player->IsInWater())
+                    if (player->isAlive() && player->IsInWater() && !player->isGameMaster())
                     {
                         if (Water == WATERSTATE_SCALDING)
                         {
@@ -165,12 +166,13 @@ struct instance_serpentshrine_cavern : public ScriptedInstance
                             {
                                 player->CastSpell(player, SPELL_SCALDINGWATER, true);
                             }
-                        } else if (Water == WATERSTATE_FRENZY)
+                        }
+                        else if (Water == WATERSTATE_FRENZY)
                         {
                             //spawn frenzy
                             if (DoSpawnFrenzy)
                             {
-                                if (Creature* frenzy = player->SummonCreature(MOB_COILFANG_FRENZY, player->GetPositionX(),player->GetPositionY(),player->GetPositionZ(),player->GetOrientation(), TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 2000))
+                                if (Creature* frenzy = player->SummonCreature(MOB_COILFANG_FRENZY, player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetOrientation(), TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 2000))
                                 {
                                     frenzy->Attack(player, false);
                                     frenzy->AddUnitMovementFlag(MOVEFLAG_SWIMMING | MOVEFLAG_LEVITATING);
@@ -372,6 +374,27 @@ struct instance_serpentshrine_cavern : public ScriptedInstance
     }
 };
 
+struct mob_serpentshrine_trashAI : public ScriptedAI
+{
+    mob_serpentshrine_trashAI(Creature *c) : ScriptedAI(c)
+    {
+        instance = c->GetInstanceScript();
+    }
+
+    ScriptedInstance *instance;
+
+    void JustDied(Unit* /*victim*/)
+    {
+        if (instance)
+            instance->SetData(DATA_TRASH, 1);
+    }
+};
+
+CreatureAI* GetAI_mob_serpentshrine_trash(Creature *creature)
+{
+    return new mob_serpentshrine_trashAI(creature);
+}
+
 InstanceScript* GetInstanceData_instance_serpentshrine_cavern(Map* pMap)
 {
     return new instance_serpentshrine_cavern(pMap);
@@ -389,6 +412,11 @@ void AddSC_instance_serpentshrine_cavern()
     newscript = new Script;
     newscript->Name = "go_bridge_console";
     newscript->pGOHello = &GOHello_go_bridge_console;
+    newscript->RegisterSelf();
+
+    newscript = new Script;
+    newscript->Name = "mob_serpentshrine_trash";
+    newscript->GetAI = &GetAI_mob_serpentshrine_trash;
     newscript->RegisterSelf();
 }
 

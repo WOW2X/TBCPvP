@@ -112,6 +112,13 @@ void WorldSession::HandleArenaTeamAddMemberOpcode(WorldPacket & recv_data)
         return;
     }
 
+    // SOLOQUEUE - Disallow invite to Solo Queue Team
+    if (arenateam->GetType() == ARENA_TEAM_5v5)
+    {
+        SendNotification("You cannot invite others to your Solo Queue team");
+        return;
+    }
+
     // OK result but not send invite
     if (player->GetSocial()->HasIgnore(GetPlayer()->GetGUIDLow()))
         return;

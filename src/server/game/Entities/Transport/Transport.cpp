@@ -154,7 +154,7 @@ bool Transport::Create(uint32 guidlow, uint32 mapid, float x, float y, float z, 
 
     m_goInfo = goinfo;
 
-    SetFloatValue(OBJECT_FIELD_SCALE_X, goinfo->size);
+    SetObjectScale(goinfo->size);
 
     SetUInt32Value(GAMEOBJECT_FACTION, goinfo->faction);
     SetUInt32Value(GAMEOBJECT_FLAGS, goinfo->flags);
@@ -463,9 +463,6 @@ void Transport::TeleportTransport(uint32 newMapid, float x, float y, float z)
 
 bool Transport::AddPassenger(Player* passenger)
 {
-    if (!IsInWorld())
-        return false;
-
     if (m_passengers.find(passenger) == m_passengers.end())
     {
         sLog->outDetail("Player %s boarded transport %s.", passenger->GetName(), GetName());
@@ -566,4 +563,3 @@ void Transport::DoEventIfAny(WayPointMap::value_type const& node, bool departure
         GetMap()->ScriptsStart(sEventScripts, eventid, this, this);
     }
 }
-

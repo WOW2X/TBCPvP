@@ -472,6 +472,8 @@ struct _Socket
     uint32 Content;
 };
 
+#define MAX_ITEM_PROTO_SPELLS  5
+
 struct ItemPrototype
 {
     uint32 ItemId;
@@ -565,7 +567,7 @@ struct ItemPrototype
     }
 };
 
-typedef std::unordered_map<uint32, uint32> ItemFakeEntryContainer;
+typedef UNORDERED_MAP<uint32, uint32> ItemFakeEntryContainer;
 
 struct ItemLocale
 {
@@ -580,4 +582,3 @@ struct ItemLocale
 #pragma pack(pop)
 #endif
 #endif
-

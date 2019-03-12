@@ -216,18 +216,18 @@ MotionMaster::MoveTargetedHome()
 }
 
 void
-MotionMaster::MoveConfused(bool waitForFinalize)
+MotionMaster::MoveConfused()
 {
     if (i_owner->GetTypeId() == TYPEID_PLAYER)
     {
         sLog->outDebug("Player (GUID: %u) move confused", i_owner->GetGUIDLow());
-        Mutate(new ConfusedMovementGenerator<Player>(waitForFinalize), MOTION_SLOT_CONTROLLED);
+        Mutate(new ConfusedMovementGenerator<Player>(), MOTION_SLOT_CONTROLLED);
     }
     else
     {
         sLog->outDebug("Creature (Entry: %u GUID: %u) move confused",
             i_owner->GetEntry(), i_owner->GetGUIDLow());
-        Mutate(new ConfusedMovementGenerator<Creature>(waitForFinalize), MOTION_SLOT_CONTROLLED);
+        Mutate(new ConfusedMovementGenerator<Creature>(), MOTION_SLOT_CONTROLLED);
     }
 }
 
@@ -569,7 +569,6 @@ void MotionMaster::DirectDelete(_Ty curr)
 
 void MotionMaster::DelayedDelete(_Ty curr)
 {
-    sLog->outCrash("Unit (Entry %u) is trying to delete its updating MG (Type %u)!", i_owner->GetEntry(), curr->GetMovementGeneratorType());
     if (isStatic(curr))
         return;
     if (!m_expList)

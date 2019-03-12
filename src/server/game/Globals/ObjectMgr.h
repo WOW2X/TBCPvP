@@ -70,7 +70,7 @@ struct GameTele
     std::wstring wnameLow;
 };
 
-typedef std::unordered_map<uint32, GameTele > GameTeleMap;
+typedef UNORDERED_MAP<uint32, GameTele > GameTeleMap;
 
 enum ScriptsType
 {
@@ -335,17 +335,15 @@ struct CellObjectGuids
     CellGuidSet gameobjects;
     CellCorpseSet corpses;
 };
-typedef std::unordered_map<uint32/*cell_id*/, CellObjectGuids> CellObjectGuidsMap;
-typedef std::unordered_map<uint32/*(mapid, spawnMode) pair*/, CellObjectGuidsMap> MapObjectGuids;
+typedef UNORDERED_MAP<uint32/*cell_id*/, CellObjectGuids> CellObjectGuidsMap;
+typedef UNORDERED_MAP<uint32/*(mapid, spawnMode) pair*/, CellObjectGuidsMap> MapObjectGuids;
 
-typedef std::unordered_map<uint64/*(instance, guid) pair*/, time_t> RespawnTimes;
+typedef UNORDERED_MAP<uint64/*(instance, guid) pair*/, time_t> RespawnTimes;
 
-typedef std::unordered_map<uint32 /*guid*/, VendorItemCounts> CreatureVendorItemCounts;
-
-// Trinity string ranges
-#define MIN_TRINITY_STRING_ID           1                    // 'SkyFire_string'
-#define MAX_TRINITY_STRING_ID           2000000000
-#define MIN_DB_SCRIPT_STRING_ID        MAX_TRINITY_STRING_ID // 'db_script_string'
+// SkyFire string ranges
+#define MIN_SKYFIRE_STRING_ID           1                    // 'SkyFire_string'
+#define MAX_SKYFIRE_STRING_ID           2000000000
+#define MIN_DB_SCRIPT_STRING_ID        MAX_SKYFIRE_STRING_ID // 'db_script_string'
 #define MAX_DB_SCRIPT_STRING_ID        2000010000
 #define MIN_CREATURE_AI_TEXT_STRING_ID (-1)                 // 'creature_ai_texts'
 #define MAX_CREATURE_AI_TEXT_STRING_ID (-1000000)
@@ -356,16 +354,16 @@ struct SkyFireStringLocale
 };
 
 typedef std::map<uint32, uint32> CreatureLinkedRespawnMap;
-typedef std::unordered_map<uint32, CreatureData> CreatureDataMap;
-typedef std::unordered_map<uint32, GameObjectData> GameObjectDataMap;
-typedef std::unordered_map<uint32, CreatureLocale> CreatureLocaleMap;
-typedef std::unordered_map<uint32, GameObjectLocale> GameObjectLocaleMap;
-typedef std::unordered_map<uint32, ItemLocale> ItemLocaleMap;
-typedef std::unordered_map<uint32, QuestLocale> QuestLocaleMap;
-typedef std::unordered_map<uint32, NpcTextLocale> NpcTextLocaleMap;
-typedef std::unordered_map<uint32, PageTextLocale> PageTextLocaleMap;
-typedef std::unordered_map<uint32, SkyFireStringLocale> SkyFireStringLocaleMap;
-typedef std::unordered_map<uint32, GossipMenuItemsLocale> GossipMenuItemsLocaleMap;
+typedef UNORDERED_MAP<uint32, CreatureData> CreatureDataMap;
+typedef UNORDERED_MAP<uint32, GameObjectData> GameObjectDataMap;
+typedef UNORDERED_MAP<uint32, CreatureLocale> CreatureLocaleMap;
+typedef UNORDERED_MAP<uint32, GameObjectLocale> GameObjectLocaleMap;
+typedef UNORDERED_MAP<uint32, ItemLocale> ItemLocaleMap;
+typedef UNORDERED_MAP<uint32, QuestLocale> QuestLocaleMap;
+typedef UNORDERED_MAP<uint32, NpcTextLocale> NpcTextLocaleMap;
+typedef UNORDERED_MAP<uint32, PageTextLocale> PageTextLocaleMap;
+typedef UNORDERED_MAP<uint32, SkyFireStringLocale> SkyFireStringLocaleMap;
+typedef UNORDERED_MAP<uint32, GossipMenuItemsLocale> GossipMenuItemsLocaleMap;
 
 typedef std::multimap<uint32, uint32> QuestRelations;
 
@@ -489,10 +487,10 @@ struct PlayerCondition
 };
 
 // NPC gossip text id
-typedef std::unordered_map<uint32, uint32> CacheNpcTextIdMap;
+typedef UNORDERED_MAP<uint32, uint32> CacheNpcTextIdMap;
 
-typedef std::unordered_map<uint32, VendorItemData> CacheVendorItemMap;
-typedef std::unordered_map<uint32, TrainerSpellData> CacheTrainerSpellMap;
+typedef UNORDERED_MAP<uint32, VendorItemData> CacheVendorItemMap;
+typedef UNORDERED_MAP<uint32, TrainerSpellData> CacheTrainerSpellMap;
 
 enum SkillRangeType
 {
@@ -530,32 +528,32 @@ class ObjectMgr
         ObjectMgr();
         ~ObjectMgr();
 
-        typedef std::unordered_map<uint32, Item*> ItemMap;
+        typedef UNORDERED_MAP<uint32, Item*> ItemMap;
 
         typedef std::set< Group * > GroupSet;
 
-        typedef std::unordered_map<uint32, Guild *> GuildMap;
+        typedef UNORDERED_MAP<uint32, Guild *> GuildMap;
 
-        typedef std::unordered_map<uint32, ArenaTeam*> ArenaTeamMap;
+        typedef UNORDERED_MAP<uint32, ArenaTeam*> ArenaTeamMap;
 
-        typedef std::unordered_map<uint32, Quest*> QuestMap;
+        typedef UNORDERED_MAP<uint32, Quest*> QuestMap;
 
-        typedef std::unordered_map<uint32, AreaTrigger> AreaTriggerMap;
+        typedef UNORDERED_MAP<uint32, AreaTrigger> AreaTriggerMap;
 
-        typedef std::unordered_map<uint32, uint32> AreaTriggerScriptMap;
+        typedef UNORDERED_MAP<uint32, uint32> AreaTriggerScriptMap;
 
-        typedef std::unordered_map<uint32, AccessRequirement> AccessRequirementMap;
+        typedef UNORDERED_MAP<uint32, AccessRequirement> AccessRequirementMap;
 
-        typedef std::unordered_map<uint32, ReputationOnKillEntry> RepOnKillMap;
+        typedef UNORDERED_MAP<uint32, ReputationOnKillEntry> RepOnKillMap;
 
-        typedef std::unordered_map<uint32, WeatherZoneChances> WeatherZoneMap;
+        typedef UNORDERED_MAP<uint32, WeatherZoneChances> WeatherZoneMap;
 
-        typedef std::unordered_map<uint32, PetCreateSpellEntry> PetCreateSpellMap;
+        typedef UNORDERED_MAP<uint32, PetCreateSpellEntry> PetCreateSpellMap;
 
         typedef std::vector<std::string> ScriptNameMap;
 
-        Player* GetPlayer(const char* name) const { return sObjectAccessor->FindPlayerByName(name);}
-        Player* GetPlayer(uint64 guid) const { return ObjectAccessor::FindPlayer(guid); }
+        Player* GetPlayer(const char* name, bool force = false) const { return sObjectAccessor->FindPlayerByName(name, force); }
+        Player* GetPlayer(uint64 guid, bool force = false) const { return ObjectAccessor::FindPlayer(guid, force); }
 
         static GameObjectInfo const *GetGameObjectInfo(uint32 id) { return sGOStorage.LookupEntry<GameObjectInfo>(id); }
 
@@ -703,14 +701,6 @@ class ObjectMgr
             return NULL;
         }
 
-        PetCreateSpellEntry const* GetPetCreateSpellInstantEntry(uint32 id) const
-        {
-            PetCreateSpellMap::const_iterator itr = mPetCreateSpellInstant.find(id);
-            if (itr != mPetCreateSpellInstant.end())
-                return &itr->second;
-            return NULL;
-        }
-
         void LoadGuilds();
         void LoadArenaTeams();
         void LoadGroups();
@@ -741,8 +731,8 @@ class ObjectMgr
         void LoadWaypointScripts();
 
         bool LoadSkyFireStrings(DatabaseType& db, char const* table, int32 min_value, int32 max_value);
-        bool LoadTrinityStrings() { return LoadSkyFireStrings(WorldDatabase, "trinity_string", MIN_TRINITY_STRING_ID, MAX_TRINITY_STRING_ID); }
-        void LoadDbScriptStrings();
+        bool LoadSkyFireStrings() { return LoadSkyFireStrings(WorldDatabase, "skyfire_string", MIN_SKYFIRE_STRING_ID, MAX_SKYFIRE_STRING_ID); }
+    void LoadDbScriptStrings();
         void LoadPetCreateSpells();
         void LoadCreatureLocales();
         void LoadCreatureTemplates();
@@ -798,7 +788,6 @@ class ObjectMgr
         void LoadGossipMenuItems();
 
         void LoadVendors();
-        void LoadCreatureVendorItemCount();
         void LoadTrainerSpell();
 
         ItemFakeEntryContainer _itemFakeEntryStore;
@@ -916,14 +905,14 @@ class ObjectMgr
         GameObjectData& NewGOData(uint32 guid) { return mGameObjectDataMap[guid]; }
         void DeleteGOData(uint32 guid);
 
-        SkyFireStringLocale const* GetTrinityStringLocale(int32 entry) const
+        SkyFireStringLocale const* GetSkyFireStringLocale(int32 entry) const
         {
             SkyFireStringLocaleMap::const_iterator itr = mSkyFireStringLocaleMap.find(entry);
             if (itr == mSkyFireStringLocaleMap.end()) return NULL;
             return &itr->second;
         }
-        const char *GetTrinityString(int32 entry, int locale_idx) const;
-        const char *GetTrinityStringForDBCLocale(int32 entry) const { return GetTrinityString(entry, DBCLocaleIndex); }
+        const char *GetSkyFireString(int32 entry, int locale_idx) const;
+        const char *GetSkyFireStringForDBCLocale(int32 entry) const { return GetSkyFireString(entry, DBCLocaleIndex); }
         int32 GetDBCLocaleIndex() const { return DBCLocaleIndex; }
         void SetDBCLocaleIndex(uint32 lang) { DBCLocaleIndex = GetIndexForLocale(LocaleConstant(lang)); }
 
@@ -1014,16 +1003,6 @@ class ObjectMgr
 
             return &iter->second;
         }
-
-        VendorItemCounts const* GetCreatureVendorItemCounts(uint32 guid) const
-        {
-            CreatureVendorItemCounts::const_iterator  iter = m_creatureVendorItemCounts.find(guid);
-            if (iter == m_creatureVendorItemCounts.end())
-                return nullptr;
-
-            return &iter->second;
-        }
-
         void AddVendorItem(uint32 entry, uint32 item, uint32 maxcount, uint32 incrtime, uint32 ExtendedCost, bool savetodb = true); // for event
         bool RemoveVendorItem(uint32 entry, uint32 item, bool savetodb = true); // for event
         bool IsVendorItemValid(uint32 vendor_entry, uint32 item, uint32 maxcount, uint32 ptime, uint32 ExtendedCost, Player* pl = NULL, std::set<uint32>* skip_vendors = NULL, uint32 ORnpcflag = 0) const;
@@ -1064,10 +1043,10 @@ class ObjectMgr
 
         QuestMap            mQuestTemplates;
 
-        typedef std::unordered_map<uint32, GossipText*> GossipTextMap;
-        typedef std::unordered_map<uint32, uint32> QuestAreaTriggerMap;
-        typedef std::unordered_map<uint32, uint32> BattleMastersMap;
-        typedef std::unordered_map<uint32, std::string> ItemTextMap;
+        typedef UNORDERED_MAP<uint32, GossipText*> GossipTextMap;
+        typedef UNORDERED_MAP<uint32, uint32> QuestAreaTriggerMap;
+        typedef UNORDERED_MAP<uint32, uint32> BattleMastersMap;
+        typedef UNORDERED_MAP<uint32, std::string> ItemTextMap;
         typedef UNORDERED_SET<uint32> TavernAreaTriggerSet;
         typedef UNORDERED_SET<uint32> GameObjectForQuestSet;
 
@@ -1096,7 +1075,6 @@ class ObjectMgr
         WeatherZoneMap      mWeatherZoneMap;
 
         PetCreateSpellMap   mPetCreateSpell;
-        PetCreateSpellMap   mPetCreateSpellInstant;
 
         //character reserved names
         typedef UNORDERED_SET<std::string> ReservedNamesMap;
@@ -1168,8 +1146,6 @@ class ObjectMgr
         CacheNpcTextIdMap m_mCacheNpcTextIdMap;
         CacheVendorItemMap m_mCacheVendorItemMap;
         CacheTrainerSpellMap m_mCacheTrainerSpellMap;
-
-        CreatureVendorItemCounts m_creatureVendorItemCounts;
 };
 
 #define sObjectMgr ACE_Singleton<ObjectMgr, ACE_Null_Mutex>::instance()

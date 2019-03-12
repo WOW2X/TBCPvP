@@ -207,6 +207,8 @@ class BattleGroundWS : public BattleGround
         int32 m_FlagsTimer[2];
         int32 m_FlagsDropTimer[2];
 
+        int32 m_flagBasePickupTimer[2];
+
         int32 m_FlagSpellForceTimer;
         int32 m_FlagSpellBrutalTimer;
         bool m_BothFlagsKept;

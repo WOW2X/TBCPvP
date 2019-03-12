@@ -20,8 +20,9 @@
 #ifndef _FORMATIONS_H
 #define _FORMATIONS_H
 
-#include "Common.h"
 #include "Define.h"
+#include "UnorderedMap.h"
+#include <map>
 
 class Creature;
 class CreatureGroup;
@@ -41,7 +42,7 @@ namespace FormationMgr
     void LoadCreatureFormations();
 };
 
-typedef std::unordered_map<uint32/*memberDBGUID*/, FormationInfo*>   CreatureGroupInfoType;
+typedef UNORDERED_MAP<uint32/*memberDBGUID*/, FormationInfo*>   CreatureGroupInfoType;
 
 extern CreatureGroupInfoType CreatureGroupMap;
 

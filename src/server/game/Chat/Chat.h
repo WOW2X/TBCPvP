@@ -63,7 +63,7 @@ class ChatHandler
         static char* LineFromMessage(char*& pos) { char* start = strtok(pos, "\n"); pos = NULL; return start; }
 
         // function with different implementation for chat/console
-        virtual const char *GetTrinityString(int32 entry) const;
+        virtual const char *GetSkyFireString(int32 entry) const;
         virtual void SendSysMessage(const char *str);
 
         char* extractQuotedArg(char* args);
@@ -105,6 +105,8 @@ class ChatHandler
         bool HandleAccountSetAddonCommand(const char* args);
         bool HandleAccountSetGmLevelCommand(const char* args);
         bool HandleAccountSetPasswordCommand(const char* args);
+
+        bool HandleGMAddonCommand(const char* args);
 
         bool HandleHelpCommand(const char* args);
         bool HandleCommandsCommand(const char* args);
@@ -199,7 +201,6 @@ class ChatHandler
         bool HandleModifyRepCommand(const char* args);
         bool HandleModifyArenaCommand(const char* args);
         bool HandleModifyGenderCommand(const char* args);
-        bool HandleModifyPhaseCommand(const char* args);
 
         //-----------------------Npc Commands-----------------------
         bool HandleNpcAddCommand(const char* args);
@@ -272,7 +273,7 @@ class ChatHandler
         bool HandleReloadLootTemplatesProspectingCommand(const char* args);
         bool HandleReloadLootTemplatesReferenceCommand(const char* args);
         bool HandleReloadLootTemplatesSkinningCommand(const char* args);
-        bool HandleReloadTrinityStringCommand(const char* args);
+        bool HandleReloadSkyFireStringCommand(const char* args);
         bool HandleReloadNpcGossipCommand(const char* args);
         bool HandleReloadNpcTrainerCommand(const char* args);
         bool HandleReloadNpcVendorCommand(const char* args);
@@ -488,15 +489,19 @@ class ChatHandler
         bool HandleCastDistCommand(const char *args);
         bool HandleCastSelfCommand(const char *args);
         bool HandleCastTargetCommand(const char *args);
+        bool HandleCharacterDeletedDeleteCommand(const char* args);
+        bool HandleCharacterDeletedListCommand(const char* args);
+        bool HandleCharacterDeletedRestoreCommand(const char* args);
+        bool HandleCharacterDeletedOldCommand(const char* args);
         bool HandleCharacterEraseCommand(const char* args);
         bool HandleCharacterRenameCommand(const char * args);
         bool HandleCharacterLockCommand(const char * args);
-        bool HandleCharacterMuteCommand(const char * args);
         bool HandleComeToMeCommand(const char *args);
         bool HandleCombatStopCommand(const char *args);
         bool HandleCharDeleteCommand(const char *args);
         bool HandleSendMessageCommand(const char * args);
         bool HandleFlushArenaPointsCommand(const char *args);
+        bool HandleArenaTeamDisbandCommand(const char *args);
         bool HandleCancelFlushCommand(const char *args);
         bool HandlePlayAllCommand(const char* args);
         bool HandleRepairitemsCommand(const char* args);
@@ -567,6 +572,24 @@ class ChatHandler
         bool HandleBanInfoHelper(uint32 accountid, char const* accountname);
         bool HandleUnBanHelper(BanMode mode, char const* args);
 
+        /**
+         * Stores informations about a deleted character
+         */
+        struct DeletedInfo
+        {
+            uint32      lowguid;                            ///< the low GUID from the character
+            std::string name;                               ///< the character name
+            uint32      accountId;                          ///< the account id
+            std::string accountName;                        ///< the account name
+            time_t      deleteDate;                         ///< the date at which the character has been deleted
+        };
+
+        typedef std::list<DeletedInfo> DeletedInfoList;
+        bool GetDeletedCharacterInfoList(DeletedInfoList& foundList, std::string searchString = "");
+        std::string GenerateDeletedCharacterGUIDsWhereStr(DeletedInfoList::const_iterator& itr, DeletedInfoList::const_iterator const& itr_end);
+        void HandleCharacterDeletedListHelper(DeletedInfoList const& foundList);
+        void HandleCharacterDeletedRestoreHelper(DeletedInfo const& delInfo);
+
         void SetSentErrorMessage(bool val){ sentErrorMessage = val;};
     private:
         WorldSession * m_session;                           // != NULL for chat command call and NULL for CLI command
@@ -583,7 +606,7 @@ class CliHandler : public ChatHandler
         explicit CliHandler(void* callbackArg, Print* zprint) : m_callbackArg(callbackArg), m_print(zprint) {}
 
         // overwrite functions
-        const char *GetTrinityString(int32 entry) const;
+        const char *GetSkyFireString(int32 entry) const;
         bool isAvailable(ChatCommand const& cmd) const;
         void SendSysMessage(const char *str);
         char const* GetName() const;

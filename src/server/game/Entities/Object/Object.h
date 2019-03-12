@@ -36,8 +36,7 @@
 #define CONTACT_DISTANCE            0.5f
 #define INTERACTION_DISTANCE        5.0f
 #define ATTACK_DISTANCE             5.0f
-#define MAX_VISIBILITY_DISTANCE     500.0f      // max distance for visible objects
-#define SIGHT_RANGE_UNIT            50.0f
+#define MAX_VISIBILITY_DISTANCE     333.0f      // max distance for visible object show, limited in 333 yards
 #define DEFAULT_VISIBILITY_DISTANCE 90.0f       // default visible distance, 90 yards on continents
 #define DEFAULT_VISIBILITY_INSTANCE 120.0f      // default visible distance in instances, 120 yards
 #define DEFAULT_VISIBILITY_BGARENAS 180.0f      // default visible distance in BG/Arenas, 180 yards
@@ -107,12 +106,6 @@ enum MovementFlags
     MOVEFLAG_TURN_LEFT | MOVEFLAG_TURN_RIGHT,
 };
 
-enum PhaseMasks
-{
-    PHASEMASK_NORMAL   = 0x00000001,
-    PHASEMASK_ANYWHERE = 0xFFFFFFFF
-};
-
 // used in SMSG_MONSTER_MOVE
 // only some values known as correct for 2.4.3
 enum SplineFlags
@@ -137,7 +130,7 @@ class CreatureAI;
 class ZoneScript;
 class Unit;
 
-typedef std::unordered_map<Player*, UpdateData> UpdateDataMapType;
+typedef UNORDERED_MAP<Player*, UpdateData> UpdateDataMapType;
 
 class Object
 {
@@ -168,13 +161,43 @@ class Object
             ClearUpdateMask(true);
         }
 
-        const uint64& GetGUID() const { return GetUInt64Value(0); }
-        uint32 GetGUIDLow() const { return GUID_LOPART(GetUInt64Value(0)); }
-        uint32 GetGUIDMid() const { return GUID_ENPART(GetUInt64Value(0)); }
-        uint32 GetGUIDHigh() const { return GUID_HIPART(GetUInt64Value(0)); }
-        PackedGuid const& GetPackGUID() const { return m_PackGUID; }
-        uint32 GetEntry() const { return GetUInt32Value(OBJECT_FIELD_ENTRY); }
-        void SetEntry(uint32 entry) { SetUInt32Value(OBJECT_FIELD_ENTRY, entry); }
+        const uint64& GetGUID() const
+        {
+            return GetUInt64Value(0);
+        }
+        uint32 GetGUIDLow() const
+        {
+            return GUID_LOPART(GetUInt64Value(0));
+        }
+        uint32 GetGUIDMid() const
+        {
+            return GUID_ENPART(GetUInt64Value(0));
+        }
+        uint32 GetGUIDHigh() const
+        {
+            return GUID_HIPART(GetUInt64Value(0));
+        }
+        PackedGuid const& GetPackGUID() const
+        {
+            return m_PackGUID;
+        }
+        uint32 GetEntry() const
+        {
+            return GetUInt32Value(OBJECT_FIELD_ENTRY);
+        }
+        void SetEntry(uint32 entry)
+        {
+            SetUInt32Value(OBJECT_FIELD_ENTRY, entry);
+        }
+
+        float GetObjectScale() const
+        {
+            return GetFloatValue(OBJECT_FIELD_SCALE_X);
+        }
+        void SetObjectScale(float scale)
+        {
+            SetFloatValue(OBJECT_FIELD_SCALE_X, scale);
+        }
 
         uint8 GetTypeId() const { return m_objectTypeId; }
         bool isType(uint16 mask) const { return (mask & m_objectType); }
@@ -565,30 +588,6 @@ class GridObject
         GridReference<T> m_gridRef;
 };
 
-template <class T_VALUES, class T_FLAGS, class FLAG_TYPE, uint8 ARRAY_SIZE>
-class FlaggedValuesArray32
-{
-    public:
-        FlaggedValuesArray32()
-        {
-            memset(&m_values, 0x00, sizeof(T_VALUES) * ARRAY_SIZE);
-            m_flags = 0;
-        }
-
-        T_FLAGS  GetFlags() const { return m_flags; }
-        bool     HasFlag(FLAG_TYPE flag) const { return m_flags & (1 << flag); }
-        void     AddFlag(FLAG_TYPE flag) { m_flags |= (1 << flag); }
-        void     DelFlag(FLAG_TYPE flag) { m_flags &= ~(1 << flag); }
-
-        T_VALUES GetValue(FLAG_TYPE flag) const { return m_values[flag]; }
-        void     SetValue(FLAG_TYPE flag, T_VALUES value) { m_values[flag] = value; }
-        void     AddValue(FLAG_TYPE flag, T_VALUES value) { m_values[flag] += value; }
-
-    private:
-        T_VALUES m_values[ARRAY_SIZE];
-        T_FLAGS m_flags;
-};
-
 class WorldObject : public Object, public WorldLocation
 {
     public:
@@ -596,7 +595,7 @@ class WorldObject : public Object, public WorldLocation
 
         virtual void Update (uint32 /*time_diff*/) { }
 
-        void _Create(uint32 guidlow, HighGuid guidhigh, uint32 phaseMask);
+        void _Create(uint32 guidlow, HighGuid guidhigh);
 
         void GetNearPoint2D(float &x, float &y, float distance, float absAngle) const;
         void GetNearPoint(WorldObject const* searcher, float &x, float &y, float &z, float searcher_size, float distance2d, float absAngle) const;
@@ -644,11 +643,6 @@ class WorldObject : public Object, public WorldLocation
         }
 
         uint32 GetInstanceId() const { return m_InstanceId; }
-
-        virtual void SetPhaseMask(uint32 newPhaseMask, bool update);
-        uint32 GetPhaseMask() const { return m_phaseMask; }
-        bool InSamePhase(WorldObject const* obj) const;
-        bool InSamePhase(uint32 phasemask) const { return (GetPhaseMask() & phasemask) != 0; }
 
         float GetDistanceSqr(float x, float y, float z) const;
         bool HasInArc(float arcangle, const Position *pos) const;
@@ -726,11 +720,8 @@ class WorldObject : public Object, public WorldLocation
 
         virtual void CleanupsBeforeDelete();                // used in destructor or explicitly before mass creature delete to remove cross-references to already deleted units
 
-        virtual void SendMessageToSet(WorldPacket* data, bool self);
-        virtual void SendMessageToSet(WorldPacket *data, Player const* skipped_rcvr);
+        virtual void SendMessageToSet(WorldPacket *data, bool self);
         virtual void SendMessageToSetInRange(WorldPacket *data, float dist, bool self);
-
-        virtual uint8 getLevelForTarget(WorldObject const* /*target*/) const { return 1; }
 
         void MonsterSay(const char* text, uint32 language, uint64 TargetGuid);
         void MonsterYell(const char* text, uint32 language, uint64 TargetGuid);
@@ -752,32 +743,11 @@ class WorldObject : public Object, public WorldLocation
         virtual void SaveRespawnTime() {}
         void AddObjectToRemoveList();
 
-        virtual bool isValid() const;
+        // main visibility check function in normal case (ignore grey zone distance check)
+        bool isVisibleFor(Player const* u) const { return isVisibleForInState(u, false); }
 
-        virtual bool isAlwaysVisibleFor(WorldObject const* seer) const { return false; }
-        virtual bool canSeeAlways(WorldObject const* obj) const { return false; }
-        bool canDetect(WorldObject const* obj, bool ignoreStealth) const;
-
-        virtual bool isVisibleForInState(WorldObject const* seer) const { return true; }
-
-        bool canDetectInvisibilityOf(WorldObject const* obj) const;
-        bool canDetectStealthOf(WorldObject const* obj) const;
-
-        virtual bool isAlwaysDetectableFor(WorldObject const* seer) const { return false; }
-
-        float GetGridActivationRange() const;
-        float GetVisibilityRange() const;
-        float GetSightRange(const WorldObject* target = NULL) const;
-        bool canSeeOrDetect(WorldObject const* obj, bool ignoreStealth = false, bool distanceCheck = false) const;
-
-        FlaggedValuesArray32<int32, uint32, StealthType, TOTAL_STEALTH_TYPES> m_stealth;
-        FlaggedValuesArray32<int32, uint32, StealthType, TOTAL_STEALTH_TYPES> m_stealthDetect;
-
-        FlaggedValuesArray32<int32, uint32, InvisibilityType, TOTAL_INVISIBILITY_TYPES> m_invisibility;
-        FlaggedValuesArray32<int32, uint32, InvisibilityType, TOTAL_INVISIBILITY_TYPES> m_invisibilityDetect;
-
-        FlaggedValuesArray32<int32, uint32, ServerSideVisibilityType, TOTAL_SERVERSIDE_VISIBILITY_TYPES> m_serverSideVisibility;
-        FlaggedValuesArray32<int32, uint32, ServerSideVisibilityType, TOTAL_SERVERSIDE_VISIBILITY_TYPES> m_serverSideVisibilityDetect;
+        // low level function for visibility change code, must be define in all main world object subclasses
+        virtual bool isVisibleForInState(Player const* u, bool inVisibleList) const = 0;
 
         // Low Level Packets
         void SendPlaySound(uint32 Sound, bool OnlySelf);
@@ -813,7 +783,7 @@ class WorldObject : public Object, public WorldLocation
         void GetGameObjectListWithEntryInGrid(std::list<GameObject*>& lList, uint32 uiEntry, float fMaxSearchRange);
         void GetCreatureListWithEntryInGrid(std::list<Creature*>& lList, uint32 uiEntry, float fMaxSearchRange);
 
-        void DestroyForNearbyPlayers();
+        void DestroyForNearbyPlayers(bool exceptGroup = false);
         virtual void UpdateObjectVisibility(bool forced = true);
         void BuildUpdate(UpdateDataMapType&);
 
@@ -834,8 +804,6 @@ class WorldObject : public Object, public WorldLocation
 
         uint32 m_groupLootTimer;                            // (msecs)timer used for group loot
         uint64 lootingGroupLeaderGUID;                      // used to find group which is looting corpse
-
-        bool canNeverSee(Unit const* u) const;
 
         bool m_isWorldObject;
 
@@ -858,7 +826,6 @@ class WorldObject : public Object, public WorldLocation
 
         //uint32 m_mapId;                                     // object at map with map_id
         uint32 m_InstanceId;                                // in map copy with instance id
-        uint32 m_phaseMask;
 
         uint16 m_notifyflags;
         uint16 m_executed_notifies;
@@ -882,4 +849,3 @@ namespace Trinity
 }
 
 #endif
-

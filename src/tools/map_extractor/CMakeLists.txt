@@ -16,7 +16,7 @@ file(GLOB_RECURSE sources *.cpp *.h)
 if( UNIX )
   include_directories (
     ${CMAKE_SOURCE_DIR}/src/server/shared
-    ${CMAKE_SOURCE_DIR}/src/server/shared/Dynamic    
+    ${CMAKE_SOURCE_DIR}/src/server/shared/Dynamic
     ${CMAKE_SOURCE_DIR}/dep/libmpq
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/loadlib
@@ -24,7 +24,7 @@ if( UNIX )
 elseif( WIN32 )
   include_directories (
     ${CMAKE_SOURCE_DIR}/src/server/shared
-    ${CMAKE_SOURCE_DIR}/src/server/shared/Dynamic    
+    ${CMAKE_SOURCE_DIR}/src/server/shared/Dynamic
     ${CMAKE_SOURCE_DIR}/dep/libmpq
     ${CMAKE_SOURCE_DIR}/dep/libmpq/win
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -37,6 +37,7 @@ add_executable(map_extractor
 )
 
 target_link_libraries(map_extractor
+  ${JEMALLOC_LIBRARY}
   mpq
   ${BZIP2_LIBRARIES}
   ${ZLIB_LIBRARIES}
@@ -47,5 +48,5 @@ add_dependencies(map_extractor mpq)
 if( UNIX )
   install(TARGETS map_extractor DESTINATION bin)
 elseif( WIN32 )
-  install(TARGETS map_extractor DESTINATION "${CMAKE_INSTALL_PREFIX}") 
+  install(TARGETS map_extractor DESTINATION "${CMAKE_INSTALL_PREFIX}")
 endif()

@@ -95,6 +95,13 @@ void WorldSession::HandleBattleGroundJoinOpcode(WorldPacket & recv_data)
     // can do this, since it's battleground, not arena
     uint32 bgQueueTypeId = sBattleGroundMgr->BGQueueTypeId(bgTypeId, 0);
 
+    if (_player->m_Played_time[PLAYED_TIME_TOTAL] < 900 && !_player->isGameMaster())
+    {
+        _player->GetSession()->SendAreaTriggerMessage("You must have at least 15 minutes of played time before you may queue. Please spend a little more time setting up your character, and try again soon. You may check how much time is remaining by typing: /played");
+        ChatHandler(_player).PSendSysMessage("You must have at least 15 minutes of played time before you may queue. Please spend a little more time setting up your character, and try again soon. You may check how much time is remaining by typing: /played");
+        return;
+    }
+
     // ignore if player is already in BG
     if (_player->InBattleGround())
         return;
@@ -542,7 +549,8 @@ void WorldSession::HandleBattleGroundLeaveOpcode(WorldPacket & recv_data)
     //if (bgTypeId >= MAX_BATTLEGROUND_TYPES)                  // cheating? but not important in this case
     //    return;
 
-    _player->LeaveBattleground();
+    if (_player)
+        _player->LeaveBattleground();
 }
 
 void WorldSession::HandleBattlefieldStatusOpcode(WorldPacket & /*recv_data*/)
@@ -680,7 +688,7 @@ void WorldSession::HandleBattleGroundArenaJoin(WorldPacket & recv_data)
     uint8 arenaslot;                                        // 2v2, 3v3 or 5v5
     uint8 asGroup;                                          // asGroup
     uint8 isRated;                                          // isRated
-    Group * grp;
+    Group * grp = NULL;
 
     recv_data >> guid >> arenaslot >> asGroup >> isRated;
 
@@ -703,15 +711,20 @@ void WorldSession::HandleBattleGroundArenaJoin(WorldPacket & recv_data)
     {
         switch (arenaslot)
         {
-            case 1:
-                ChatHandler(_player).PSendSysMessage("3v3 rated arena is disabled.");
-                return;
-            break;
+            //case 1:
+            //    ChatHandler(_player).PSendSysMessage("3v3 rated arena is disabled.");
+            //    return;
             case 2:
                 ChatHandler(_player).PSendSysMessage("5v5 rated arena is disabled.");
                 return;
-            break;
         }
+    }
+
+    if (_player->m_Played_time[PLAYED_TIME_TOTAL] < 900 && !_player->isGameMaster())
+    {
+        _player->GetSession()->SendAreaTriggerMessage("You must have at least 15 minutes of played time before you may queue. Please spend a little more time setting up your character, and try again soon. You may check how much time is remaining by typing: /played");
+        ChatHandler(_player).PSendSysMessage("You must have at least 15 minutes of played time before you may queue. Please spend a little more time setting up your character, and try again soon. You may check how much time is remaining by typing: /played");
+        return;
     }
 
     // ignore if we already in BG or BG queue
@@ -911,7 +924,7 @@ void WorldSession::SendBattleGroundOrArenaJoinError(uint8 err)
             return;
             break;
     }
-    ChatHandler::FillMessageData(&data, NULL, CHAT_MSG_BG_SYSTEM_NEUTRAL, LANG_UNIVERSAL, NULL, 0, GetTrinityString(msg), NULL);
+    ChatHandler::FillMessageData(&data, NULL, CHAT_MSG_BG_SYSTEM_NEUTRAL, LANG_UNIVERSAL, NULL, 0, GetSkyFireString(msg), NULL);
     SendPacket(&data);
     return;
 }

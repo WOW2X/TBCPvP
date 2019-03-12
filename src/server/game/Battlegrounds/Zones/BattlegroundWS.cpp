@@ -49,6 +49,9 @@ uint32 BG_WSG_Reputation[BG_HONOR_MODE_NUM][BG_WSG_REWARD_NUM] = {
 
 BattleGroundWS::BattleGroundWS()
 {
+    m_flagBasePickupTimer[BG_TEAM_ALLIANCE] = 0;
+    m_flagBasePickupTimer[BG_TEAM_HORDE] = 0;
+
     m_BothFlagsKept = false;
     m_BgObjects.resize(BG_WS_OBJECT_MAX);
     m_BgCreatures.resize(BG_CREATURES_MAX_WS);
@@ -111,6 +114,17 @@ void BattleGroundWS::Update(time_t diff)
                 m_BothFlagsKept = false;
             }
         }
+
+        // Flag Timer Check
+        if (m_FlagState[BG_TEAM_ALLIANCE] != BG_WS_FLAG_STATE_ON_BASE)
+            m_flagBasePickupTimer[BG_TEAM_ALLIANCE] += diff;
+        else
+             m_flagBasePickupTimer[BG_TEAM_ALLIANCE] = 0;
+        if (m_FlagState[BG_TEAM_HORDE] != BG_WS_FLAG_STATE_ON_BASE)
+            m_flagBasePickupTimer[BG_TEAM_HORDE] += diff;
+        else
+             m_flagBasePickupTimer[BG_TEAM_HORDE] = 0;
+
         if (m_BothFlagsKept)
         {
           m_FlagSpellForceTimer += diff;
@@ -240,6 +254,7 @@ void BattleGroundWS::EventPlayerCapturedFlag(Player *Source)
         return;
 
     uint32 winner = 0;
+    bool illegalFlagCap = false;
 
     //TODO FIX reputation and honor gains for low level players!
 
@@ -257,11 +272,26 @@ void BattleGroundWS::EventPlayerCapturedFlag(Player *Source)
           Source->RemoveAurasDueToSpell(WS_SPELL_FOCUSED_ASSAULT);
         if (m_FlagDebuffState == 2)
           Source->RemoveAurasDueToSpell(WS_SPELL_BRUTAL_ASSAULT);
-        if (GetTeamScore(ALLIANCE) < BG_WS_MAX_TEAM_SCORE)
-            AddPoint(ALLIANCE, 1);
-        PlaySoundToAll(BG_WS_SOUND_FLAG_CAPTURED_ALLIANCE);
-        RewardReputationToTeam(890, BG_WSG_Reputation[m_HonorMode][BG_WSG_FLAG_CAP], ALLIANCE);          // +35 reputation
-        RewardHonorToTeam(BG_WSG_Honor[m_HonorMode][BG_WSG_FLAG_CAP], ALLIANCE);                    // +40 bonushonor
+
+        // Is the cap illegal? Reset flag and announce flag drop
+        if (m_flagBasePickupTimer[BG_TEAM_HORDE] < sWorld->getConfig(CONFIG_BATTLEGROUND_WS_MIN_LEGAL_FLAG_CAP_TIME))
+        {
+            UpdateFlagState(ALLIANCE, BG_WS_FLAG_STATE_WAIT_RESPAWN);
+            RespawnFlag(HORDE, false);
+            SpawnBGObject(BG_WS_OBJECT_H_FLAG, RESPAWN_IMMEDIATELY);
+            PlaySoundToAll(BG_WS_SOUND_FLAG_RETURNED);
+            SendMessageToAll(LANG_BG_WS_RETURNED_HF, CHAT_MSG_BG_SYSTEM_HORDE, Source);
+            illegalFlagCap = true;
+        }
+        else
+        {
+            if (GetTeamScore(ALLIANCE) < BG_WS_MAX_TEAM_SCORE)
+                AddPoint(ALLIANCE, 1);
+            PlaySoundToAll(BG_WS_SOUND_FLAG_CAPTURED_ALLIANCE);
+            RewardReputationToTeam(890, BG_WSG_Reputation[m_HonorMode][BG_WSG_FLAG_CAP], ALLIANCE);          // +35 reputation
+            RewardHonorToTeam(BG_WSG_Honor[m_HonorMode][BG_WSG_FLAG_CAP], ALLIANCE);                    // +40 bonushonor
+        }
+
     }
     else
     {
@@ -276,14 +306,36 @@ void BattleGroundWS::EventPlayerCapturedFlag(Player *Source)
           Source->RemoveAurasDueToSpell(WS_SPELL_FOCUSED_ASSAULT);
         if (m_FlagDebuffState == 2)
           Source->RemoveAurasDueToSpell(WS_SPELL_BRUTAL_ASSAULT);
-        if (GetTeamScore(HORDE) < BG_WS_MAX_TEAM_SCORE)
-            AddPoint(HORDE, 1);
-        PlaySoundToAll(BG_WS_SOUND_FLAG_CAPTURED_HORDE);
-        RewardReputationToTeam(889, BG_WSG_Reputation[m_HonorMode][BG_WSG_FLAG_CAP], HORDE);             // +35 reputation
-        RewardHonorToTeam(BG_WSG_Honor[m_HonorMode][BG_WSG_FLAG_CAP], HORDE);                       // +40 bonushonor
+
+        // Is the cap illegal? Reset flag and announce flag drop
+        if (m_flagBasePickupTimer[BG_TEAM_ALLIANCE] < sWorld->getConfig(CONFIG_BATTLEGROUND_WS_MIN_LEGAL_FLAG_CAP_TIME))
+        {
+            UpdateFlagState(HORDE, BG_WS_FLAG_STATE_WAIT_RESPAWN);
+            RespawnFlag(ALLIANCE, false);
+            SpawnBGObject(BG_WS_OBJECT_A_FLAG, RESPAWN_IMMEDIATELY);
+            PlaySoundToAll(BG_WS_SOUND_FLAG_RETURNED);
+            SendMessageToAll(LANG_BG_WS_RETURNED_AF, CHAT_MSG_BG_SYSTEM_ALLIANCE, Source);
+            illegalFlagCap = true;
+        }
+        else
+        {
+            if (GetTeamScore(HORDE) < BG_WS_MAX_TEAM_SCORE)
+                AddPoint(HORDE, 1);
+            PlaySoundToAll(BG_WS_SOUND_FLAG_CAPTURED_HORDE);
+            RewardReputationToTeam(889, BG_WSG_Reputation[m_HonorMode][BG_WSG_FLAG_CAP], HORDE);             // +35 reputation
+            RewardHonorToTeam(BG_WSG_Honor[m_HonorMode][BG_WSG_FLAG_CAP], HORDE);                       // +40 bonushonor
+        }
+
     }
 
-    // smolderforge quest reward
+    // Handle illegal flag capture
+    if (illegalFlagCap)
+    {
+        HandleIllegalFlagCapture(Source, "WSG");
+        return;
+    }
+
+    // Smolderforge quest reward
     if (Source->GetQuestStatus(68475) == QUEST_STATUS_INCOMPLETE)
         Source->CompleteQuest(68475);
 
@@ -776,4 +828,3 @@ void BattleGroundWS::FillInitialWorldStates(WorldPacket& data)
     else
         data << uint32(BG_WS_FLAG_STATE_HORDE) << uint32(1);
 }
-

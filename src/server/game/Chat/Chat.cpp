@@ -139,7 +139,6 @@ ChatCommand * ChatHandler::getCommandTable()
         { "standstate",    SEC_GAMEMASTER,     false, &ChatHandler::HandleStandStateCommand,          "", NULL },
         { "morph",         SEC_GAMEMASTER,     false, &ChatHandler::HandleMorphCommand,               "", NULL },
         { "gender",        SEC_ADMINISTRATOR,  false, &ChatHandler::HandleModifyGenderCommand,        "", NULL },
-        { "phase",         SEC_GAMEMASTER,     false, &ChatHandler::HandleModifyPhaseCommand,         "", NULL },
         { NULL,             0,                  false, NULL,                                           "", NULL }
     };
 
@@ -196,13 +195,22 @@ ChatCommand * ChatHandler::getCommandTable()
         { NULL,             0,                  false, NULL,                                           "", NULL }
     };
 
+    static ChatCommand characterDeletedCommandTable[] =
+    {
+        { "delete",        SEC_CONSOLE,        true,  &ChatHandler::HandleCharacterDeletedDeleteCommand, "", NULL },
+        { "list",          SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleCharacterDeletedListCommand, "", NULL },
+        { "restore",       SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleCharacterDeletedRestoreCommand, "", NULL },
+        { "old",           SEC_CONSOLE,        true,  &ChatHandler::HandleCharacterDeletedOldCommand, "", NULL },
+        { NULL,             0,                  false, NULL,                                           "", NULL }
+    };
+
     static ChatCommand characterCommandTable[] =
     {
+        { "deleted",       SEC_GAMEMASTER,     true,  NULL,                                           "", characterDeletedCommandTable},
         { "erase",         SEC_CONSOLE,        true,  &ChatHandler::HandleCharacterEraseCommand,      "", NULL },
         { "rename",        SEC_GAMEMASTER,     true,  &ChatHandler::HandleCharacterRenameCommand,     "", NULL },
         { "titles",        SEC_GAMEMASTER,     true,  &ChatHandler::HandleCharacterTitlesCommand,     "", NULL },
         { "lock",          SEC_GAMEMASTER,     true,  &ChatHandler::HandleCharacterLockCommand,       "", NULL },
-        { "mute",          SEC_MODERATOR,      true,  &ChatHandler::HandleCharacterMuteCommand,       "", NULL },
         { NULL,             0,                  false, NULL,                                           "", NULL }
     };
 
@@ -309,7 +317,7 @@ ChatCommand * ChatHandler::getCommandTable()
         { "item_enchantment_template",  SEC_ADMINISTRATOR, true,  &ChatHandler::HandleReloadItemEnchantementsCommand,       "", NULL },
         { "item_loot_template",         SEC_ADMINISTRATOR, true,  &ChatHandler::HandleReloadLootTemplatesItemCommand,       "", NULL },
         { "mail_loot_template",         SEC_ADMINISTRATOR, true,  &ChatHandler::HandleReloadLootTemplatesMailCommand,       "", NULL },
-        { "trinity_string",             SEC_ADMINISTRATOR, true,  &ChatHandler::HandleReloadTrinityStringCommand,           "", NULL },
+        { "skyfire_string",              SEC_ADMINISTRATOR, true,  &ChatHandler::HandleReloadSkyFireStringCommand,            "", NULL },
         { "npc_gossip",                 SEC_ADMINISTRATOR, true,  &ChatHandler::HandleReloadNpcGossipCommand,               "", NULL },
         { "npc_trainer",                SEC_ADMINISTRATOR, true,  &ChatHandler::HandleReloadNpcTrainerCommand,              "", NULL },
         { "npc_vendor",                 SEC_ADMINISTRATOR, true,  &ChatHandler::HandleReloadNpcVendorCommand,               "", NULL },
@@ -367,6 +375,12 @@ ChatCommand * ChatHandler::getCommandTable()
         { "invite",        SEC_GAMEMASTER,     true,  &ChatHandler::HandleGuildInviteCommand,         "", NULL },
         { "uninvite",      SEC_GAMEMASTER,     true,  &ChatHandler::HandleGuildUninviteCommand,       "", NULL },
         { "rank",          SEC_GAMEMASTER,     true,  &ChatHandler::HandleGuildRankCommand,           "", NULL },
+        { NULL,             0,                  false, NULL,                                           "", NULL }
+    };
+
+    static ChatCommand arenaCommandTable[] =
+    {
+        { "disband",       SEC_GAMEMASTER,     true,  &ChatHandler::HandleArenaTeamDisbandCommand,    "", NULL },
         { NULL,             0,                  false, NULL,                                           "", NULL }
     };
 
@@ -628,6 +642,7 @@ ChatCommand * ChatHandler::getCommandTable()
         { "lookup",        SEC_ADMINISTRATOR,  true,  NULL,                                           "", lookupCommandTable   },
         { "pdump",         SEC_ADMINISTRATOR,  true,  NULL,                                           "", pdumpCommandTable    },
         { "guild",         SEC_ADMINISTRATOR,  true,  NULL,                                           "", guildCommandTable    },
+        { "arena",         SEC_ADMINISTRATOR,  true,  NULL,                                           "", arenaCommandTable    },
         { "cast",          SEC_ADMINISTRATOR,  false, NULL,                                           "", castCommandTable     },
         { "reset",         SEC_ADMINISTRATOR,  false, NULL,                                           "", resetCommandTable    },
         { "instance",      SEC_ADMINISTRATOR,  true,  NULL,                                           "", instanceCommandTable },
@@ -707,7 +722,7 @@ ChatCommand * ChatHandler::getCommandTable()
         { "bindsight",     SEC_ADMINISTRATOR,  false, &ChatHandler::HandleBindSightCommand,           "", NULL },
         { "unbindsight",   SEC_ADMINISTRATOR,  false, &ChatHandler::HandleUnbindSightCommand,         "", NULL },
         { "joinevent",     SEC_PLAYER,         false, &ChatHandler::HandleTempEventJoinCommand,       "", NULL },
-
+        { "ogmaddonreq",   SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleGMAddonCommand,             "", NULL },
         { NULL,             0,                  false, NULL,                                           "", NULL }
     };
 
@@ -751,9 +766,9 @@ ChatCommand * ChatHandler::getCommandTable()
     return commandTable;
 }
 
-const char *ChatHandler::GetTrinityString(int32 entry) const
+const char *ChatHandler::GetSkyFireString(int32 entry) const
 {
-    return m_session->GetTrinityString(entry);
+    return m_session->GetSkyFireString(entry);
 }
 
 bool ChatHandler::isAvailable(ChatCommand const& cmd) const
@@ -841,12 +856,12 @@ void ChatHandler::SendGlobalGMSysMessage(const char *str)
 
 void ChatHandler::SendSysMessage(int32 entry)
 {
-    SendSysMessage(GetTrinityString(entry));
+    SendSysMessage(GetSkyFireString(entry));
 }
 
 void ChatHandler::PSendSysMessage(int32 entry, ...)
 {
-    const char *format = GetTrinityString(entry);
+    const char *format = GetSkyFireString(entry);
     va_list ap;
     char str [1024];
     va_start(ap, entry);
@@ -1786,7 +1801,7 @@ GameObject* ChatHandler::GetObjectGlobalyWithGuidOrNearWithDbGuid(uint32 lowguid
         cell.data.Part.reserved = ALL_DISTRICT;
 
         Trinity::GameObjectWithDbGUIDCheck go_check(*pl, lowguid);
-        Trinity::GameObjectSearcher<Trinity::GameObjectWithDbGUIDCheck> checker(pl, obj, go_check);
+        Trinity::GameObjectSearcher<Trinity::GameObjectWithDbGUIDCheck> checker(obj, go_check);
 
         TypeContainerVisitor<Trinity::GameObjectSearcher<Trinity::GameObjectWithDbGUIDCheck>, GridTypeMapContainer > object_checker(checker);
         cell.Visit(p, object_checker, *pl->GetMap());
@@ -1874,9 +1889,9 @@ bool ChatHandler::needReportToTarget(Player* chr) const
     return pl != chr && pl->IsVisibleGloballyFor(chr);
 }
 
-const char *CliHandler::GetTrinityString(int32 entry) const
+const char *CliHandler::GetSkyFireString(int32 entry) const
 {
-    return sObjectMgr->GetTrinityStringForDBCLocale(entry);
+    return sObjectMgr->GetSkyFireStringForDBCLocale(entry);
 }
 
 bool CliHandler::isAvailable(ChatCommand const& cmd) const
@@ -1893,7 +1908,7 @@ void CliHandler::SendSysMessage(const char *str)
 
 const char *CliHandler::GetName() const
 {
-    return GetTrinityString(LANG_CONSOLE_COMMAND);
+    return GetSkyFireString(LANG_CONSOLE_COMMAND);
 }
 
 bool CliHandler::needReportToTarget(Player* /*chr*/) const

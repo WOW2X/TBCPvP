@@ -48,6 +48,10 @@ InstanceSaveManager::~InstanceSaveManager()
     for (InstanceSaveHashMap::iterator itr = m_instanceSaveById.begin(); itr != m_instanceSaveById.end(); ++itr)
     {
         InstanceSave *save = itr->second;
+
+        if (!save)
+            continue;
+
         for (InstanceSave::PlayerListType::iterator itr2 = save->m_playerList.begin(), next = itr2; itr2 != save->m_playerList.end(); itr2 = next)
         {
             ++next;

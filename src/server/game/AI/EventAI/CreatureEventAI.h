@@ -117,7 +117,6 @@ enum EventAI_ActionType
     ACTION_T_FORCE_DESPAWN              = 41,               // No Params
     ACTION_T_SET_INVINCIBILITY_HP_LEVEL = 42,               // MinHpValue, format(0-flat, 1-percent from max health)
     ACTION_T_MOUNT_TO_ENTRY_OR_MODEL    = 43,               // Creature_template entry(param1) OR ModelId (param2) (or 0 for both to unmount)
-    ACTION_T_DYNAMIC_MOVEMENT           = 49,               // EnableDynamicMovement (1 = on; 0 = off)
 
     // Trinity only
     ACTION_T_SET_PHASE_MASK             = 97,
@@ -134,26 +133,25 @@ enum EventAI_ActionType
 
 enum Target
 {
-    // Self (me)
-    TARGET_T_SELF = 0,                                      // Self cast
+    //Self (me)
+    TARGET_T_SELF = 0,                                      //Self cast
 
-    // Hostile targets (if pet then returns pet owner)
-    TARGET_T_HOSTILE,                                       // Our current target (ie: highest aggro)
-    TARGET_T_HOSTILE_SECOND_AGGRO,                          // Second highest aggro (generaly used for cleaves and some special attacks)
-    TARGET_T_HOSTILE_LAST_AGGRO,                            // Dead last on aggro (no idea what this could be used for)
-    TARGET_T_HOSTILE_RANDOM,                                // Just any random target on our threat list
-    TARGET_T_HOSTILE_RANDOM_NOT_TOP,                        // Any random target except top threat
+    //Hostile targets (if pet then returns pet owner)
+    TARGET_T_HOSTILE,                                       //Our current target (ie: highest aggro)
+    TARGET_T_HOSTILE_SECOND_AGGRO,                          //Second highest aggro (generaly used for cleaves and some special attacks)
+    TARGET_T_HOSTILE_LAST_AGGRO,                            //Dead last on aggro (no idea what this could be used for)
+    TARGET_T_HOSTILE_RANDOM,                                //Just any random target on our threat list
+    TARGET_T_HOSTILE_RANDOM_NOT_TOP,                        //Any random target except top threat
 
     //Invoker targets (if pet then returns pet owner)
-    TARGET_T_ACTION_INVOKER,                                // Unit who caused this Event to occur (only works for EVENT_T_AGGRO, EVENT_T_KILL, EVENT_T_DEATH, EVENT_T_SPELLHIT, EVENT_T_OOC_LOS, EVENT_T_FRIENDLY_HP, EVENT_T_FRIENDLY_IS_CC, EVENT_T_FRIENDLY_MISSING_BUFF)
-    TARGET_T_ACTION_INVOKER_OWNER,                          // Unit who is responsible for Event to occur (only works for EVENT_T_AGGRO, EVENT_T_KILL, EVENT_T_DEATH, EVENT_T_SPELLHIT, EVENT_T_OOC_LOS, EVENT_T_FRIENDLY_HP, EVENT_T_FRIENDLY_IS_CC, EVENT_T_FRIENDLY_MISSING_BUFF, EVENT_T_RECEIVE_EMOTE, EVENT_T_RECEIVE_AI_EVENT)
+    TARGET_T_ACTION_INVOKER,                                //Unit who caused this Event to occur (only works for EVENT_T_AGGRO, EVENT_T_KILL, EVENT_T_DEATH, EVENT_T_SPELLHIT, EVENT_T_OOC_LOS, EVENT_T_FRIENDLY_HP, EVENT_T_FRIENDLY_IS_CC, EVENT_T_FRIENDLY_MISSING_BUFF)
 
-    // Hostile targets (including pets)
-    TARGET_T_HOSTILE_WPET,                                  // Current target (can be a pet)
-    TARGET_T_HOSTILE_WPET_SECOND_AGGRO,                     // Second highest aggro (generaly used for cleaves and some special attacks)
-    TARGET_T_HOSTILE_WPET_LAST_AGGRO,                       // Dead last on aggro (no idea what this could be used for)
-    TARGET_T_HOSTILE_WPET_RANDOM,                           // Just any random target on our threat list
-    TARGET_T_HOSTILE_WPET_RANDOM_NOT_TOP,                   // Any random target except top threat
+    //Hostile targets (including pets)
+    TARGET_T_HOSTILE_WPET,                                  //Current target (can be a pet)
+    TARGET_T_HOSTILE_WPET_SECOND_AGGRO,                     //Second highest aggro (generaly used for cleaves and some special attacks)
+    TARGET_T_HOSTILE_WPET_LAST_AGGRO,                       //Dead last on aggro (no idea what this could be used for)
+    TARGET_T_HOSTILE_WPET_RANDOM,                           //Just any random target on our threat list
+    TARGET_T_HOSTILE_WPET_RANDOM_NOT_TOP,                   //Any random target except top threat
 
     TARGET_T_ACTION_INVOKER_WPET,
 
@@ -162,13 +160,12 @@ enum Target
 
 enum CastFlags
 {
-    CAST_INTURRUPT_PREVIOUS     = 0x01,                     // Interrupt any spell casting
-    CAST_TRIGGERED              = 0x02,                     // Triggered (this makes spell cost zero mana and have no cast time)
-    CAST_FORCE_CAST             = 0x04,                     // Forces cast even if creature is out of mana or out of range
-    CAST_NO_MELEE_IF_OOM        = 0x08,                     // Prevents creature from entering melee if out of mana or out of range
-    CAST_FORCE_TARGET_SELF      = 0x10,                     // Forces the target to cast this spell on itself
-    CAST_AURA_NOT_PRESENT       = 0x20,                     // Only casts the spell if the target does not have an aura from the spell
-    CAST_COMBAT_MOVE            = 0x40                      // Prevents combat movement if cast successful. Allows movement on range, OOM, LOS
+    CAST_INTURRUPT_PREVIOUS     = 0x01,                     //Interrupt any spell casting
+    CAST_TRIGGERED              = 0x02,                     //Triggered (this makes spell cost zero mana and have no cast time)
+    CAST_FORCE_CAST             = 0x04,                     //Forces cast even if creature is out of mana or out of range
+    CAST_NO_MELEE_IF_OOM        = 0x08,                     //Prevents creature from entering melee if out of mana or out of range
+    CAST_FORCE_TARGET_SELF      = 0x10,                     //Forces the target to cast this spell on itself
+    CAST_AURA_NOT_PRESENT       = 0x20,                     //Only casts the spell if the target does not have an aura from the spell
 };
 
 enum EventFlags
@@ -201,7 +198,7 @@ struct StringTextData
     uint32 Emote;
 };
 // Text Maps
-typedef std::unordered_map<int32, StringTextData> CreatureEventAI_TextMap;
+typedef UNORDERED_MAP<int32, StringTextData> CreatureEventAI_TextMap;
 
 struct CreatureEventAI_Action
 {
@@ -309,6 +306,7 @@ struct CreatureEventAI_Action
         struct
         {
             uint32 state;                                   // 0 = stop combat based movement, anything else continue attacking
+            uint32 melee;                                   // if set: at stop send melee combat stop if in combat, use for terminate melee fighting state for switch to ranged
         } combat_movement;
         // ACTION_T_SET_PHASE                               = 22
         struct
@@ -414,11 +412,6 @@ struct CreatureEventAI_Action
             uint32 creatureId;                              // set one from fields (or 0 for both to dismount)
             uint32 modelId;
         } mount;
-        // ACTION_T_DYNAMIC_MOVEMENT                        = 49
-        struct
-        {
-            uint32 state;                                   // bool: 1 = on; 0 = off
-        } dynamicMovement;
 
         // RAW
         struct
@@ -574,7 +567,7 @@ struct CreatureEventAI_Event
     CreatureEventAI_Action action[MAX_ACTIONS];
 };
 //Event_Map
-typedef std::unordered_map<uint32, std::vector<CreatureEventAI_Event> > CreatureEventAI_Event_Map;
+typedef UNORDERED_MAP<uint32, std::vector<CreatureEventAI_Event> > CreatureEventAI_Event_Map;
 
 struct CreatureEventAI_Summon
 {
@@ -588,7 +581,7 @@ struct CreatureEventAI_Summon
 };
 
 //EventSummon_Map
-typedef std::unordered_map<uint32, CreatureEventAI_Summon> CreatureEventAI_Summon_Map;
+typedef UNORDERED_MAP<uint32, CreatureEventAI_Summon> CreatureEventAI_Summon_Map;
 
 struct CreatureEventAIHolder
 {
@@ -626,8 +619,6 @@ class CreatureEventAI : public CreatureAI
         void ReceiveEmote(Player* player, uint32 text_emote);
         static int Permissible(const Creature *);
 
-        void SetCombatMove(bool on);
-
         bool ProcessEvent(CreatureEventAIHolder& pHolder, Unit* pActionInvoker = NULL);
         void ProcessAction(CreatureEventAI_Action const& action, uint32 rnd, uint32 EventId, Unit* pActionInvoker);
         uint32 GetRandActionParam(uint32 rnd, uint32 param1, uint32 param2, uint32 param3);
@@ -635,7 +626,7 @@ class CreatureEventAI : public CreatureAI
         Unit* GetTargetByType(uint32 Target, Unit* pActionInvoker);
 
         void DoScriptText(int32 textEntry, WorldObject* pSource, Unit* target);
-        bool CanCast(Unit* Target, SpellEntry const *Spell, bool Triggered);
+        SpellCastResult CanCast(Unit* target, SpellEntry const* spell, uint32 flags);
 
         bool SpawnedEventConditionsCheck(CreatureEventAI_Event const& event);
 
@@ -656,7 +647,5 @@ class CreatureEventAI : public CreatureAI
         float AttackDistance;                               // Distance to attack from
         float AttackAngle;                                  // Angle of attack
         uint32 InvinceabilityHpLevel;                       // Minimal health level allowed at damage apply
-        bool DynamicMovement;                               // Core will control creatures movement if this is enabled
-        float LastSpellMaxRange;                            // Maximum spell range that was cast during dynamic movement
 };
 #endif

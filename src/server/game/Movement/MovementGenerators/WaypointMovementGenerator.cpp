@@ -254,7 +254,6 @@ void FlightPathMovementGenerator::Initialize(Player &player)
     player.getHostileRefManager().setOnlineOfflineState(false);
     player.addUnitState(UNIT_STAT_IN_FLIGHT);
     player.SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISABLE_MOVE | UNIT_FLAG_TAXI_FLIGHT);
-    player.SetClientControl(&player, 0);
     Traveller<Player> traveller(player);
     // do not send movement, it was sent already
 
@@ -273,11 +272,10 @@ void FlightPathMovementGenerator::Finalize(Player & player)
 {
     // remove flag to prevent send object build movement packets for flight state and crash (movement generator already not at top of stack)
     player.clearUnitState(UNIT_FLAG_DISABLE_MOVE | UNIT_STAT_IN_FLIGHT);
-    player.SetClientControl(&player, 1);
 
     float x, y, z;
     i_destinationHolder.GetLocationNow(player.GetBaseMap(), x, y, z);
-    player.UpdatePosition(x, y, z, player.GetOrientation());
+    player.SetPosition(x, y, z, player.GetOrientation());
 
     //player.Unmount();
 

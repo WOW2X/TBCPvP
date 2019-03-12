@@ -98,7 +98,6 @@ void WorldSession::HandlePetActionHelper(Unit *pet, uint64 guid1, uint16 spellid
                             return;
 
                         cPet->SetLastCommandTimer(250);
-                        cPet->cancelQueuedSpellCast();
                     }
                     pet->AttackStop();
                     pet->InterruptNonMeleeSpells(false);
@@ -118,7 +117,6 @@ void WorldSession::HandlePetActionHelper(Unit *pet, uint64 guid1, uint16 spellid
                             return;
 
                         cPet->SetLastCommandTimer(250);
-                        cPet->cancelQueuedSpellCast();
                     }
                     pet->AttackStop();
                     pet->InterruptNonMeleeSpells(false);
@@ -170,7 +168,6 @@ void WorldSession::HandlePetActionHelper(Unit *pet, uint64 guid1, uint16 spellid
                             charmInfo->SetIsReturning(false);
 
                             pet->ToCreature()->AI()->AttackStart(TargetUnit);
-                            pet->ToCreature()->ToPet()->SetOriginalTarget(TargetUnit);
 
                             //10% chance to play special pet attack talk, else growl
                             if (pet->ToCreature()->isPet() && ((Pet*)pet)->getPetType() == SUMMON_PET && pet != TargetUnit && urand(0, 100) < 10)
@@ -226,7 +223,6 @@ void WorldSession::HandlePetActionHelper(Unit *pet, uint64 guid1, uint16 spellid
             {
                 case REACT_PASSIVE:                         //passive
                     pet->AttackStop();
-                    pet->ToCreature()->ToPet()->cancelQueuedSpellCast();
 
                 case REACT_DEFENSIVE:                       //recovery
                 case REACT_AGGRESSIVE:                      //activete
@@ -287,7 +283,7 @@ void WorldSession::HandlePetActionHelper(Unit *pet, uint64 guid1, uint16 spellid
 
             int16 result = spell->PetCanCast(unit_target);
 
-            //auto turn to target unless possessed
+                                                            //auto turn to target unless possessed
             if (result == SPELL_FAILED_UNIT_NOT_INFRONT && !pet->isPossessed())
             {
                 pet->SetInFront(unit_target);
@@ -333,53 +329,23 @@ void WorldSession::HandlePetActionHelper(Unit *pet, uint64 guid1, uint16 spellid
             }
             else
             {
-                bool sendCastResult = true;
-                if (result == SPELL_FAILED_LINE_OF_SIGHT || result == SPELL_FAILED_OUT_OF_RANGE)
+                if (pet->isPossessed())
                 {
-                    sendCastResult = false;
-                    SpellEntry const* spellInfo = spell->m_spellInfo;
-                    bool isPositiveSpell = IsPositiveSpell(spellInfo->Id);
-
-                    // friendly dont report if !pos
-                    if (Unit* pOwner = pet->GetCharmerOrOwner())
+                    WorldPacket data(SMSG_CAST_FAILED, (4+1+1));
+                    data << uint32(spellid) << uint8(2) << uint8(result);
+                    switch (result)
                     {
-                        if (pOwner->GetTypeId() == TYPEID_PLAYER)
-                            if (pOwner->IsFriendlyTo(unit_target) && !isPositiveSpell)
-                                pet->SendPetCastFail(spellInfo->Id, SPELL_FAILED_TARGET_FRIENDLY);
-                            else
-                                pet->SendPetCastFail(spellInfo->Id, SPELL_FAILED_DONT_REPORT);
-
-                        Unit* originalTarget = pet->getVictim() ? pet->getVictim() : nullptr;
-                        // queue spell - agressive
-                        bool friendlyTarget = pOwner->IsFriendlyTo(unit_target);
-                        if (!friendlyTarget && !pOwner->canAttack(unit_target))
-                            return;
-
-                        // if we reach this point the agressive spell can be casted? maybe 
-                        pet->clearUnitState(UNIT_STAT_FOLLOW);
-                        if (originalTarget)
-                            if (originalTarget != unit_target)
-                                pet->AttackStop();
-
-                        if (pet->ToCreature()->IsAIEnabled)
-                        {
-                            /// @todo: make this one function 
-                            pet->GetCharmInfo()->SetIsAtStay(false);
-                            pet->GetCharmInfo()->SetIsFollowing(false);
-                            pet->GetCharmInfo()->SetIsReturning(false);
-
-                            if (!friendlyTarget)
-                            {
-                                pet->GetCharmInfo()->SetIsCommandAttack(true);
-                                pet->Attack(unit_target, true);
-                            }
-                            else
-                                pet->GetMotionMaster()->MoveFollow(unit_target, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
-
-                            pet->ToCreature()->ToPet()->queueSpellCast(unit_target, originalTarget, spell->m_spellInfo->Id);
-                        }
+                        case SPELL_FAILED_REQUIRES_SPELL_FOCUS:
+                            data << uint32(spellInfo->RequiresSpellFocus);
+                            break;
+                        case SPELL_FAILED_REQUIRES_AREA:
+                            data << uint32(spellInfo->AreaId);
+                            break;
                     }
+                    SendPacket(&data);
                 }
+                else
+                    pet->SendPetCastFail(spellid, result);
 
                 if (!pet->ToCreature()->HasSpellCooldown(spellid))
                     pet->SendPetClearCooldown(spellid);
@@ -387,27 +353,6 @@ void WorldSession::HandlePetActionHelper(Unit *pet, uint64 guid1, uint16 spellid
                 spell->finish(false);
                 delete spell;
 
-                if (sendCastResult)
-                {
-                    if (pet->isPossessed())
-                    {
-                        WorldPacket data(SMSG_CAST_FAILED, (4+1+1));
-                        data << uint32(spellid) << uint8(2) << uint8(result);
-                        switch (result)
-                        {
-                            case SPELL_FAILED_REQUIRES_SPELL_FOCUS:
-                                data << uint32(spellInfo->RequiresSpellFocus);
-                                break;
-                            case SPELL_FAILED_REQUIRES_AREA:
-                                data << uint32(spellInfo->AreaId);
-                                break;
-                        }
-                        SendPacket(&data);
-                    }
-                    else
-                        pet->SendPetCastFail(spellid, result);
-                }
-                
                 // reset specific flags in case of spell fail. AI will reset other flags
                 if (pet->GetCharmInfo())
                     pet->GetCharmInfo()->SetIsCommandAttack(false);
