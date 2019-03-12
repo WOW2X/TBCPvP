@@ -4,8 +4,6 @@
 /**
  *  @file    Base_Thread_Adapter.h
  *
- *  $Id: Base_Thread_Adapter.h 92682 2010-11-23 23:41:19Z shuston $
- *
  *  @author Nanbor Wang <nanbor@cs.wustl.edu>
  */
 //=============================================================================
@@ -33,9 +31,8 @@
 # define ACE_THREAD_ADAPTER_NAME ace_thread_adapter
 #endif  /* ACE_HAS_VERSIONED_NAMESPACE == 1 */
 
-// Run the thread entry point for the ACE_Thread_Adapter.  This must
-// be an extern "C" to make certain compilers happy...
-
+/// Run the thread entry point for the ACE_Thread_Adapter.  This must
+/// be an extern "C" to make certain compilers happy...
 extern "C" ACE_Export ACE_THR_FUNC_RETURN ACE_THREAD_ADAPTER_NAME (void *args);
 
 ACE_BEGIN_VERSIONED_NAMESPACE_DECL
@@ -44,7 +41,7 @@ ACE_BEGIN_VERSIONED_NAMESPACE_DECL
  * @class ACE_OS_Thread_Descriptor
  *
  * @brief Parent class of all ACE_Thread_Descriptor classes.
- * =
+ *
  * Container for ACE_Thread_Descriptor members that are
  * used in ACE_OS.
  */
@@ -54,6 +51,8 @@ public:
   /// Get the thread creation flags.
   long flags (void) const;
 
+  virtual ~ACE_OS_Thread_Descriptor (void);
+
 protected:
   /// For use by ACE_Thread_Descriptor.
   ACE_OS_Thread_Descriptor (long flags = 0);
@@ -61,16 +60,13 @@ protected:
   /**
    * Keeps track of whether this thread was created "detached" or not.
    * If a thread is *not* created detached then if someone calls
-   * <ACE_Thread_Manager::wait>, we need to join with that thread (and
+   * ACE_Thread_Manager::wait(), we need to join with that thread (and
    * close down the handle).
    */
   long flags_;
 };
 
-
-
 class ACE_Service_Gestalt;
-
 
 /**
  * @class ACE_Base_Thread_Adapter
@@ -163,8 +159,8 @@ protected:
 
   /**
    * Optional thread descriptor.  Passing this pointer in will force
-   * the spawned thread to cache this location in <Log_Msg> and wait
-   * until <Thread_Manager> fills in all information in thread
+   * the spawned thread to cache this location in Log_Msg and wait
+   * until Thread_Manager fills in all information in thread
    * descriptor.
    */
   ACE_OS_Thread_Descriptor *thr_desc_;
@@ -172,7 +168,7 @@ protected:
   /// The ACE_Log_Msg attributes.
   ACE_OS_Log_Msg_Attributes log_msg_attributes_;
 
-  /// That is usefull for gprof, define itimerval
+  /// That is useful for gprof, define itimerval
 #ifdef ACE_USES_GPROF
   struct itimerval itimer_;
 #endif // ACE_USES_GPROF

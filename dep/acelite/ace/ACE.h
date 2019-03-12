@@ -4,8 +4,6 @@
 /**
  * @file    ACE.h
  *
- * $Id: ACE.h 92772 2010-12-02 20:14:56Z shuston $
- *
  * This file contains value added ACE functions that extend the
  * behavior of the UNIX and Win32 OS calls.
  *
@@ -22,18 +20,13 @@
 
 #include /**/ "ace/pre.h"
 
-#include "ace/config-lite.h"
+#include /**/ "ace/config-lite.h"
 
 #if !defined (ACE_LACKS_PRAGMA_ONCE)
 # pragma once
 #endif /* ACE_LACKS_PRAGMA_ONCE */
 
-#include "ace/OS_NS_math.h"
-#include "ace/Flag_Manip.h"
-#include "ace/Handle_Ops.h"
-#include "ace/Lib_Find.h"
-#include "ace/Init_ACE.h"
-#include "ace/Sock_Connect.h"
+#include "ace/Basic_Types.h"
 #include "ace/Default_Constants.h"
 
 #if defined (ACE_EXPORT_MACRO)
@@ -662,6 +655,14 @@ namespace ACE
   bool is_equal (const T& a, const T& b)
   {
     return !((a < b) || (a > b));
+  }
+
+  /// Helper to avoid comparing floating point values with !=
+  /// (uses < and > operators).
+  template <typename T>
+  bool is_inequal (const T& a, const T& b)
+  {
+    return !is_equal (a, b);
   }
 
   /// Hex conversion utility.

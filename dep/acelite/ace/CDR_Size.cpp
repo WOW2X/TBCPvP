@@ -1,5 +1,3 @@
-// $Id: CDR_Size.cpp 91813 2010-09-17 07:52:52Z johnnyw $
-
 #include "ace/CDR_Size.h"
 #include "ace/SString.h"
 #include "ace/OS_Memory.h"
@@ -210,6 +208,7 @@ ACE_SizeCDR::write_wchar_array_i (const ACE_CDR::WChar *,
   this->adjust (ACE_OutputCDR::wchar_maxbytes () * length, align);
   return true;
 }
+
 
 ACE_CDR::Boolean
 ACE_SizeCDR::write_array (const void *,

@@ -1,9 +1,9 @@
 // Name_Space.cpp
-// $Id: Name_Space.cpp 91286 2010-08-05 09:04:31Z johnnyw $
-
 #include "ace/Name_Space.h"
 #include "ace/OS_NS_string.h"
 #include "ace/OS_NS_stdlib.h"
+
+
 
 ACE_BEGIN_VERSIONED_NAMESPACE_DECL
 
@@ -14,6 +14,7 @@ ACE_Name_Binding::ACE_Name_Binding (void)
 {
   ACE_TRACE ("ACE_Name_Binding::ACE_Name_Binding");
 }
+
 
 ACE_Name_Binding::~ACE_Name_Binding (void)
 {

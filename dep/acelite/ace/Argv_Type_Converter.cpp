@@ -1,5 +1,3 @@
-// $Id: Argv_Type_Converter.cpp 91286 2010-08-05 09:04:31Z johnnyw $
-
 #include "ace/Argv_Type_Converter.h"
 
 #if !defined (__ACE_INLINE__)
@@ -27,6 +25,7 @@ ACE_Argv_Type_Converter::ACE_Argv_Type_Converter (int &argc, wchar_t** argv)
     this->char_argv_[i] = ACE_OS::strdup (ACE_TEXT_ALWAYS_CHAR (argv[i]));
 }
 #endif  // ACE_USES_WCHAR
+
 
 ACE_Argv_Type_Converter::ACE_Argv_Type_Converter (int &argc, char **argv)
   : saved_argc_(argc),
@@ -98,6 +97,7 @@ ACE_Argv_Type_Converter::initialize (void)
       this->wchar_argv_[saved_argc_] = 0;
     }
 }
+
 
 void
 ACE_Argv_Type_Converter::align_char_with_wchar (void)

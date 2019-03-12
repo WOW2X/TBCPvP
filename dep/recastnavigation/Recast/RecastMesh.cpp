@@ -59,7 +59,6 @@ static bool buildMeshAdjacency(unsigned short* polys, const int npolys,
 		unsigned short* t = &polys[i*vertsPerPoly*2];
 		for (int j = 0; j < vertsPerPoly; ++j)
 		{
-			if (t[j] == RC_MESH_NULL_IDX) break;
 			unsigned short v0 = t[j];
 			unsigned short v1 = (j+1 >= vertsPerPoly || t[j+1] == RC_MESH_NULL_IDX) ? t[0] : t[j+1];
 			if (v0 < v1)
@@ -84,7 +83,6 @@ static bool buildMeshAdjacency(unsigned short* polys, const int npolys,
 		unsigned short* t = &polys[i*vertsPerPoly*2];
 		for (int j = 0; j < vertsPerPoly; ++j)
 		{
-			if (t[j] == RC_MESH_NULL_IDX) break;
 			unsigned short v0 = t[j];
 			unsigned short v1 = (j+1 >= vertsPerPoly || t[j+1] == RC_MESH_NULL_IDX) ? t[0] : t[j+1];
 			if (v0 > v1)
@@ -1270,7 +1268,7 @@ bool rcMergePolyMeshes(rcContext* ctx, rcPolyMesh** meshes, const int nmeshes, r
 		ctx->log(RC_LOG_ERROR, "rcMergePolyMeshes: Out of memory 'vremap' (%d).", maxVertsPerMesh);
 		return false;
 	}
-	memset(vremap, 0, sizeof(unsigned short)*maxVertsPerMesh);
+	memset(nextVert, 0, sizeof(int)*maxVerts);
 	
 	for (int i = 0; i < nmeshes; ++i)
 	{

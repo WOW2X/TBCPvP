@@ -1,4 +1,3 @@
-// $Id: Configuration.cpp 92828 2010-12-08 09:38:57Z mcorino $
 #include "ace/Configuration.h"
 #include "ace/Auto_Ptr.h"
 #include "ace/SString.h"
@@ -128,6 +127,7 @@ ACE_Configuration::expand_path (const ACE_Configuration_Section_Key& key,
     }
 
   return 0;
+
 }
 
 int
@@ -341,9 +341,11 @@ ACE_Configuration::operator== (const ACE_Configuration& rhs) const
                   // we're not comparing them.  How would we since we have
                   // no get operation for invalid types.
                   // So, if we have them, we guess they are equal.
+
                 }// end else if values match.
 
               ++valueIndex;
+
             }// end value while loop
 
           // look in the rhs for values not in this
@@ -364,9 +366,11 @@ ACE_Configuration::operator== (const ACE_Configuration& rhs) const
                 }
               ++valueIndex;
             }// end while for rhs values not in this.
+
         }// end else if sections match.
 
       ++sectionIndex;
+
     }// end section while loop
 
   // Finally, make sure that there are no sections in rhs that do not
@@ -453,6 +457,7 @@ ACE_Configuration_Win32Registry::ACE_Configuration_Win32Registry (HKEY hKey)
 
   root_ = ACE_Configuration_Section_Key (temp);
 }
+
 
 ACE_Configuration_Win32Registry::~ACE_Configuration_Win32Registry (void)
 {
@@ -949,6 +954,7 @@ ACE_Configuration_Win32Registry::remove_value (const ACE_Configuration_Section_K
   return 0;
 }
 
+
 int
 ACE_Configuration_Win32Registry::load_key (const ACE_Configuration_Section_Key& key,
                                            HKEY& hKey)
@@ -1168,6 +1174,7 @@ ACE_Configuration_Section_IntId::ACE_Configuration_Section_IntId (const ACE_Conf
   : value_hash_map_ (rhs.value_hash_map_),
     section_hash_map_ (rhs.section_hash_map_)
 {
+
 }
 
 ACE_Configuration_Section_IntId::~ACE_Configuration_Section_IntId ()
@@ -1247,6 +1254,7 @@ ACE_Configuration_Heap::open (size_t default_map_size)
   return create_index ();
 }
 
+
 int
 ACE_Configuration_Heap::open (const ACE_TCHAR* file_name,
                               void* base_address,
@@ -1280,7 +1288,7 @@ ACE_Configuration_Heap::open (const ACE_TCHAR* file_name,
 #if !defined (ACE_LACKS_ACCESS)
   // Now check if the backing store has been created successfully.
   if (ACE_OS::access (file_name, F_OK) != 0)
-    ACE_ERROR_RETURN ((LM_ERROR,
+    ACELIB_ERROR_RETURN ((LM_ERROR,
                        ACE_TEXT ("create_index\n")),
                       -1);
 #endif /* ACE_LACKS_ACCESS */
@@ -1311,7 +1319,7 @@ ACE_Configuration_Heap::create_index (void)
                                      section_index) == -1)
         {
           // Attempt to clean up.
-          ACE_ERROR ((LM_ERROR,
+          ACELIB_ERROR ((LM_ERROR,
                       ACE_TEXT ("create_index failed\n")));
           this->allocator_->remove ();
           return -1;
@@ -1347,6 +1355,7 @@ ACE_Configuration_Heap::load_key (const ACE_Configuration_Section_Key& key,
   name.assign_nocopy (temp);
   return 0;
 }
+
 
 int
 ACE_Configuration_Heap::add_section (const ACE_Configuration_Section_Key& base,
@@ -1598,15 +1607,15 @@ ACE_Configuration_Heap::remove_section (const ACE_Configuration_Section_Key& key
 
   if (recursive)
     {
-      ACE_Configuration_Section_Key section;
-      if (open_section (key, sub_section, 0, section))
+      ACE_Configuration_Section_Key recursive_section;
+      if (open_section (key, sub_section, 0, recursive_section))
         return -1;
 
       int index = 0;
       ACE_TString name;
-      while (!enumerate_sections (section, index, name))
+      while (!enumerate_sections (recursive_section, index, name))
         {
-          if (remove_section (section, name.fast_rep (), true))
+          if (remove_section (recursive_section, name.fast_rep (), true))
             return -1;
 
           ++index;
@@ -1798,9 +1807,9 @@ ACE_Configuration_Heap::set_string_value (const ACE_Configuration_Section_Key& k
       ACE_TCHAR* pers_value =
  (ACE_TCHAR *) allocator_->malloc ((value.length () + 1) * sizeof (ACE_TCHAR));
       ACE_OS::strcpy (pers_value, value.fast_rep ());
-      ACE_Configuration_ExtId item_name (pers_name);
+      ACE_Configuration_ExtId new_item_name (pers_name);
       ACE_Configuration_Value_IntId item_value (pers_value);
-      if (section_int.value_hash_map_->bind (item_name, item_value, allocator_))
+      if (section_int.value_hash_map_->bind (new_item_name, item_value, allocator_))
         {
           allocator_->free (pers_value);
           allocator_->free (pers_name);
@@ -1985,6 +1994,7 @@ ACE_Configuration_Heap::get_integer_value (const ACE_Configuration_Section_Key& 
     {
       return -1;    // section does not exist
     }
+
 
   // See if it exists first
   ACE_Configuration_ExtId VExtId (t_name);

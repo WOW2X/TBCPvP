@@ -1,5 +1,3 @@
-// $Id: OS_NS_fcntl.cpp 91781 2010-09-15 12:49:15Z johnnyw $
-
 #include "ace/OS_NS_fcntl.h"
 
 #if !defined (ACE_HAS_INLINED_OSCALLS)
@@ -121,7 +119,7 @@ ACE_OS::open (const char *filename,
     return h;
 #elif defined (INTEGRITY)
   ACE_UNUSED_ARG (sa);
-  if (!strcmp(filename,ACE_DEV_NULL)) {
+  if(!strcmp(filename,ACE_DEV_NULL)) {
       ACE_OSCALL_RETURN (::AllocateNullConsoleDescriptor(), ACE_HANDLE, -1);
   }
   else {

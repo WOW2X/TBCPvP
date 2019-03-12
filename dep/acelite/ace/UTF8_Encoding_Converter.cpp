@@ -1,5 +1,3 @@
-// $Id: UTF8_Encoding_Converter.cpp 80826 2008-03-04 14:51:23Z wotte $
-
 #include "ace/UTF8_Encoding_Converter.h"
 
 #if defined (ACE_USES_WCHAR)
@@ -74,7 +72,7 @@ ACE_UTF8_Encoding_Converter*
 ACE_UTF8_Encoding_Converter::encoded (const ACE_Byte* source,
                                       size_t source_size)
 {
-  for (size_t i = 0; i < source_size; i++)
+  for(size_t i = 0; i < source_size; i++)
     {
       if (source[i] < 0x01 || source[i] > 0x7f)
         return 0;

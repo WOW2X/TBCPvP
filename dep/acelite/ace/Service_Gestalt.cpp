@@ -1,5 +1,3 @@
-// $Id: Service_Gestalt.cpp 92357 2010-10-25 14:11:44Z mesnier_p $
-
 #include "ace/Svc_Conf.h"
 #include "ace/Get_Opt.h"
 #include "ace/ARGV.h"
@@ -58,15 +56,16 @@ ACE_Service_Type_Dynamic_Guard::ACE_Service_Type_Dynamic_Guard
 #endif
 {
     if (ACE::debug ())
-        ACE_DEBUG ((LM_DEBUG,
+        ACELIB_DEBUG ((LM_DEBUG,
                     ACE_TEXT ("ACE (%P|%t) STDG::<ctor>, repo=%@")
-                    ACE_TEXT(", name=%s - begining at [%d]\n"),
+                    ACE_TEXT(", name=%s - beginning at [%d]\n"),
                     &this->repo_,
                     this->name_,
                     this->repo_begin_));
 
   ACE_ASSERT (this->name_ != 0); // No name?
 }
+
 
 /// Destructor
 ACE_Service_Type_Dynamic_Guard::~ACE_Service_Type_Dynamic_Guard (void)
@@ -83,7 +82,7 @@ ACE_Service_Type_Dynamic_Guard::~ACE_Service_Type_Dynamic_Guard (void)
   if ((ret < 0 && ret != -2) || tmp == 0)
     {
       if (ACE::debug ())
-        ACE_ERROR ((LM_WARNING,
+        ACELIB_ERROR ((LM_WARNING,
                     ACE_TEXT ("ACE (%P|%t) STDG::<dtor> - Failed (%d) to find %s -> %@\n"),
                     ret, this->name_, tmp));
       return;
@@ -95,7 +94,7 @@ ACE_Service_Type_Dynamic_Guard::~ACE_Service_Type_Dynamic_Guard (void)
       // the same name as our dummy.
 
       if (ACE::debug ())
-        ACE_DEBUG ((LM_DEBUG,
+        ACELIB_DEBUG ((LM_DEBUG,
                     ACE_TEXT ("ACE (%P|%t) STDG::<dtor>, repo=%@ [%d], ")
                     ACE_TEXT ("name=%s - updating dependents [%d - %d)\n"),
                     &this->repo_,
@@ -111,7 +110,7 @@ ACE_Service_Type_Dynamic_Guard::~ACE_Service_Type_Dynamic_Guard (void)
       this->repo_.relocate_i (this->repo_begin_, this->repo_.current_size (), tmp->dll());
 
       if (ACE::debug ())
-        ACE_DEBUG ((LM_DEBUG,
+        ACELIB_DEBUG ((LM_DEBUG,
                     ACE_TEXT ("ACE (%P|%t) STDG::<dtor>, repo=%@ [%d], ")
                     ACE_TEXT ("name=%s - loaded (type=%@, impl=%@, object=%@, active=%d)\n"),
                     &this->repo_,
@@ -123,6 +122,8 @@ ACE_Service_Type_Dynamic_Guard::~ACE_Service_Type_Dynamic_Guard (void)
                     tmp->active ()));
     }
 }
+
+
 
 // ----------------------------------------
 
@@ -161,8 +162,10 @@ ACE_Service_Gestalt::intrusive_remove_ref (ACE_Service_Gestalt* g)
     }
 }
 
+
 ACE_Service_Gestalt::~ACE_Service_Gestalt (void)
 {
+
   if (this->svc_repo_is_owned_)
     delete this->repo_;
 
@@ -174,7 +177,7 @@ ACE_Service_Gestalt::~ACE_Service_Gestalt (void)
   // Delete the dynamically allocated static_svcs instance.
 #ifndef ACE_NLOGGING
   if (ACE::debug ())
-    ACE_DEBUG ((LM_DEBUG,
+    ACELIB_DEBUG ((LM_DEBUG,
                 ACE_TEXT ("ACE (%P|%t) SG::~SG - this=%@, pss = %@\n"),
                 this, this->processed_static_svcs_));
 #endif
@@ -220,7 +223,7 @@ ACE_Service_Gestalt::ACE_Service_Gestalt (size_t size,
 
 #ifndef ACE_NLOGGING
   if (ACE::debug ())
-    ACE_DEBUG ((LM_DEBUG,
+    ACELIB_DEBUG ((LM_DEBUG,
                 ACE_TEXT ("ACE (%P|%t) SG::ctor - this = %@, pss = %@\n"),
                 this, this->processed_static_svcs_));
 #endif
@@ -256,6 +259,7 @@ ACE_Service_Gestalt::init_i (void)
   return 0;
 }
 
+
 /// Add the default statically-linked services to the Service
 /// Repository.
 int
@@ -277,7 +281,10 @@ ACE_Service_Gestalt::load_static_svcs (void)
         return -1;
     }
   return 0;
+
 } /* load_static_svcs () */
+
+
 
 /// Find a static service descriptor by name
 int
@@ -324,6 +331,8 @@ ACE_Service_Gestalt::find_processed_static_svc (const ACE_TCHAR* name)
   return 0;
 }
 
+
+
 /// @brief Captures a list of the direcives processed (explicitely) for this
 /// Gestalt so that services can be replicated in other repositories
 /// upon their first initialization.
@@ -334,6 +343,7 @@ void
 ACE_Service_Gestalt::add_processed_static_svc
   (const ACE_Static_Svc_Descriptor *assd)
 {
+
   /// When process_directive(Static_Svc_Descriptor&) is called, it
   /// associates a service object with the Gestalt and makes the
   /// resource (a Service Object) local to the repository. This is but
@@ -369,12 +379,13 @@ ACE_Service_Gestalt::add_processed_static_svc
   this->processed_static_svcs_->insert(tmp);
 
   if (ACE::debug ())
-    ACE_DEBUG ((LM_DEBUG,
+    ACELIB_DEBUG ((LM_DEBUG,
                 ACE_TEXT ("ACE (%P|%t) SG::add_processed_static_svc, ")
                 ACE_TEXT ("repo=%@ - %s\n"),
                 this->repo_,
                 assd->name_));
 }
+
 
 /// Queues a static service object descriptor which, during open()
 /// will be given to process_directive() to create the Service
@@ -392,7 +403,9 @@ ACE_Service_Gestalt::insert (ACE_Static_Svc_Descriptor *stsd)
   return this->static_svcs_->insert (stsd);
 }
 
+
 ACE_ALLOC_HOOK_DEFINE (ACE_Service_Gestalt)
+
 
 void
 ACE_Service_Gestalt::dump (void) const
@@ -412,7 +425,7 @@ ACE_Service_Gestalt::initialize (const ACE_TCHAR *svc_name,
 #ifndef ACE_NLOGGING
   if (ACE::debug ())
     {
-      ACE_DEBUG ((LM_DEBUG,
+      ACELIB_DEBUG ((LM_DEBUG,
                   ACE_TEXT ("ACE (%P|%t) SG::initialize - () repo=%@, ")
                   ACE_TEXT ("looking up static ")
                   ACE_TEXT ("service \'%s\' to initialize\n"),
@@ -433,7 +446,7 @@ ACE_Service_Gestalt::initialize (const ACE_TCHAR *svc_name,
         }
       else
         {
-          ACE_ERROR_RETURN ((LM_ERROR,
+          ACELIB_ERROR_RETURN ((LM_ERROR,
                              ACE_TEXT ("ACE (%P|%t) ERROR: SG::initialize - service \'%s\'")
                              ACE_TEXT (" was not located.\n"),
                              svc_name),
@@ -441,7 +454,7 @@ ACE_Service_Gestalt::initialize (const ACE_TCHAR *svc_name,
         }
     }
   if (srp == 0)
-    ACE_ERROR_RETURN ((LM_ERROR,
+    ACELIB_ERROR_RETURN ((LM_ERROR,
                        ACE_TEXT ("ACE (%P|%t) ERROR: SG::initialize - service \'%s\'")
                        ACE_TEXT (" was not located.\n"),
                        svc_name),
@@ -452,7 +465,7 @@ ACE_Service_Gestalt::initialize (const ACE_TCHAR *svc_name,
                           args.argv ()) == -1)
     {
       // ... report and remove this entry.
-      ACE_ERROR ((LM_ERROR,
+      ACELIB_ERROR ((LM_ERROR,
                   ACE_TEXT ("ACE (%P|%t) ERROR: SG::initialize - static init of \'%s\'")
                   ACE_TEXT (" failed (%p)\n"),
                   svc_name, ACE_TEXT ("error")));
@@ -465,6 +478,7 @@ ACE_Service_Gestalt::initialize (const ACE_TCHAR *svc_name,
   return 0;
 }
 
+
 #if (ACE_USES_CLASSIC_SVC_CONF == 1)
 int
 ACE_Service_Gestalt::initialize (const ACE_Service_Type_Factory *stf,
@@ -474,7 +488,7 @@ ACE_Service_Gestalt::initialize (const ACE_Service_Type_Factory *stf,
 
 #ifndef ACE_NLOGGING
   if (ACE::debug ())
-    ACE_DEBUG ((LM_DEBUG,
+    ACELIB_DEBUG ((LM_DEBUG,
                 ACE_TEXT ("ACE (%P|%t) SG::initialize - repo=%@, name=%s")
                 ACE_TEXT (" - looking up in the repo\n"),
                 this->repo_,
@@ -491,7 +505,7 @@ ACE_Service_Gestalt::initialize (const ACE_Service_Type_Factory *stf,
     {
 #ifndef ACE_NLOGGING
       if (ACE::debug ())
-        ACE_DEBUG ((LM_WARNING,
+        ACELIB_DEBUG ((LM_WARNING,
                     ACE_TEXT ("ACE (%P|%t) SG::initialize - repo=%@,")
                     ACE_TEXT (" name=%s - removing a pre-existing namesake.\n"),
                     this->repo_,
@@ -511,7 +525,7 @@ ACE_Service_Gestalt::initialize (const ACE_Service_Type_Factory *stf,
   // DLL_Manager was re-entrant we would have entered an infinite
   // recursion here.
   if (retv == -2 && srp->type () == 0)
-    ACE_ERROR_RETURN ((LM_WARNING,
+    ACELIB_ERROR_RETURN ((LM_WARNING,
                        ACE_TEXT ("ACE (%P|%t) SG::initialize - repo=%@,")
                        ACE_TEXT (" name=%s - forward-declared; ")
                        ACE_TEXT (" recursive initialization requests are")
@@ -549,6 +563,7 @@ ACE_Service_Gestalt::initialize (const ACE_Service_Type_Factory *stf,
 }
 #endif /* (ACE_USES_CLASSIC_SVC_CONF == 1) */
 
+
 /// Dynamically link the shared object file and retrieve a pointer to
 /// the designated shared object in this file.
 /// @note This is obsolete (and error-prone) in the presense of dynamic
@@ -566,7 +581,7 @@ ACE_Service_Gestalt::initialize (const ACE_Service_Type *sr,
   ACE_TRACE ("ACE_Service_Gestalt::initialize");
 
   if (ACE::debug ())
-    ACE_DEBUG ((LM_DEBUG,
+    ACELIB_DEBUG ((LM_DEBUG,
                 ACE_TEXT ("ACE (%P|%t) SG::initialize - repo=%@, name=%s")
                 ACE_TEXT (" - looking up in the repo\n"),
                 this->repo_,
@@ -577,7 +592,7 @@ ACE_Service_Gestalt::initialize (const ACE_Service_Type *sr,
                          (const ACE_Service_Type **) &srp) >= 0)
     {
 #ifndef ACE_NLOGGING
-      ACE_DEBUG ((LM_WARNING,
+      ACELIB_DEBUG ((LM_WARNING,
                   ACE_TEXT ("ACE (%P|%t) SG::initialize - repo=%@, name=%s")
                   ACE_TEXT (" - removing a pre-existing namesake.\n"),
                   this->repo_,
@@ -587,6 +602,7 @@ ACE_Service_Gestalt::initialize (const ACE_Service_Type *sr,
     }
 
   return this->initialize_i (sr, parameters);
+
 }
 
 /// Dynamically link the shared object file and retrieve a pointer to
@@ -607,7 +623,7 @@ ACE_Service_Gestalt::initialize_i (const ACE_Service_Type *sr,
 #ifndef ACE_NLOGGING
       // Not using LM_ERROR here to avoid confusing the test harness
       if (ACE::debug ())
-        ACE_ERROR_RETURN ((LM_WARNING,
+        ACELIB_ERROR_RETURN ((LM_WARNING,
                            ACE_TEXT ("ACE (%P|%t) SG::initialize_i -")
                            ACE_TEXT (" repo=%@, name=%s - remove failed: %m\n"),
                            this->repo_,
@@ -622,7 +638,7 @@ ACE_Service_Gestalt::initialize_i (const ACE_Service_Type *sr,
 #ifndef ACE_NLOGGING
       // Not using LM_ERROR here to avoid confusing the test harness
       if (ACE::debug ())
-        ACE_ERROR_RETURN ((LM_WARNING,
+        ACELIB_ERROR_RETURN ((LM_WARNING,
                            ACE_TEXT ("ACE (%P|%t) SG::initialize_i -")
                            ACE_TEXT (" repo=%@, name=%s - insert failed: %m\n"),
                            this->repo_,
@@ -676,6 +692,7 @@ ACE_Service_Gestalt::resume (const ACE_TCHAR svc_name[])
   return this->repo_->resume (svc_name);
 }
 
+
 int
 ACE_Service_Gestalt::process_directive (const ACE_Static_Svc_Descriptor &ssd,
                                         bool force_replace)
@@ -703,6 +720,7 @@ ACE_Service_Gestalt::process_directive_i (const ACE_Static_Svc_Descriptor &ssd,
           return 0;
         }
     }
+
 
   ACE_Service_Object_Exterminator gobbler;
   void *sym = (ssd.alloc_)(&gobbler);
@@ -733,7 +751,7 @@ ACE_Service_Gestalt::process_directive_i (const ACE_Static_Svc_Descriptor &ssd,
 
 #ifndef ACE_NLOGGING
   if (ACE::debug ())
-    ACE_DEBUG ((LM_DEBUG,
+    ACELIB_DEBUG ((LM_DEBUG,
                 ACE_TEXT ("ACE (%P|%t) SG::process_directive_i, ")
                 ACE_TEXT ("repo=%@ - %s, dll=%s, force=%d\n"),
                 this->repo_,
@@ -752,7 +770,7 @@ ACE_Service_Gestalt::process_directives_i (ACE_Svc_Conf_Param *param)
 {
 #ifndef ACE_NLOGGING
   if (ACE::debug ())
-    ACE_DEBUG ((LM_DEBUG,
+    ACELIB_DEBUG ((LM_DEBUG,
                 ACE_TEXT ("ACE (%P|%t) SG::process_directives_i, ")
                 ACE_TEXT ("repo=%@ - %s\n"),
                 this->repo_,
@@ -798,7 +816,7 @@ ACE_XML_Svc_Conf *
 ACE_Service_Gestalt::get_xml_svc_conf (ACE_DLL &xmldll)
 {
   if (xmldll.open (ACE_TEXT ("ACEXML_XML_Svc_Conf_Parser")) == -1)
-    ACE_ERROR_RETURN ((LM_ERROR,
+    ACELIB_ERROR_RETURN ((LM_ERROR,
                        ACE_TEXT ("ACE (%P|%t) Failure to open ACEXML_XML_Svc_Conf_Parser: %p\n"),
                        ACE_TEXT("ACE_Service_Config::get_xml_svc_conf")),
                       0);
@@ -815,7 +833,7 @@ ACE_Service_Gestalt::get_xml_svc_conf (ACE_DLL &xmldll)
   ACE_XML_Svc_Conf::Factory factory = reinterpret_cast<ACE_XML_Svc_Conf::Factory> (temp_p);
 
   if (factory == 0)
-    ACE_ERROR_RETURN ((LM_ERROR,
+    ACELIB_ERROR_RETURN ((LM_ERROR,
                        ACE_TEXT ("ACE (%P|%t) Unable to resolve factory: %p\n"),
                        xmldll.error ()),
                       0);
@@ -836,7 +854,7 @@ ACE_Service_Gestalt::process_file (const ACE_TCHAR file[])
   // service with a matching name.
   if (this->repo_->find (file, 0, 0) >=0)
     {
-      ACE_DEBUG ((LM_WARNING,
+      ACELIB_DEBUG ((LM_WARNING,
                   ACE_TEXT ("ACE (%P|%t) Configuration file %s is currently")
                   ACE_TEXT (" being processed. Ignoring recursive process_file().\n"),
                   file));
@@ -862,7 +880,7 @@ ACE_Service_Gestalt::process_file (const ACE_TCHAR file[])
       // Invalid svc.conf file.  We'll report it here and break out of
       // the method.
       if (ACE::debug ())
-        ACE_DEBUG ((LM_ERROR,
+        ACELIB_DEBUG ((LM_ERROR,
                     ACE_TEXT ("ACE (%P|%t): %p\n"),
                     file));
 
@@ -906,7 +924,7 @@ ACE_Service_Gestalt::process_directive (const ACE_TCHAR directive[])
 
 #ifndef ACE_NLOGGING
   if (ACE::debug ())
-    ACE_DEBUG ((LM_DEBUG,
+    ACELIB_DEBUG ((LM_DEBUG,
                 ACE_TEXT ("ACE (%P|%t) SG::process_directive, repo=%@ - %s\n"),
                 this->repo_,
                 directive));
@@ -937,7 +955,9 @@ ACE_Service_Gestalt::process_directive (const ACE_TCHAR directive[])
 
   return xml_svc_conf->parse_string (directive);
 #endif /* ACE_USES_CLASSIC_SVC_CONF == 1 */
+
 } /* process_directive () */
+
 
 int
 ACE_Service_Gestalt::init_svc_conf_file_queue (void)
@@ -953,14 +973,16 @@ ACE_Service_Gestalt::init_svc_conf_file_queue (void)
 
 #ifndef ACE_NLOGGING
   if (ACE::debug ())
-    ACE_DEBUG ((LM_DEBUG,
+    ACELIB_DEBUG ((LM_DEBUG,
                 ACE_TEXT ("ACE (%P|%t) SG::init_svc_conf_file_queue ")
                 ACE_TEXT ("- this=%@, repo=%@\n"),
                 this, this->repo_));
 #endif
 
   return 0;
+
 } /* init_svc_conf_file_queue () */
+
 
 int
 ACE_Service_Gestalt::open_i (const ACE_TCHAR program_name[],
@@ -984,7 +1006,7 @@ ACE_Service_Gestalt::open_i (const ACE_TCHAR program_name[],
 
 #ifndef ACE_NLOGGING
   if (ACE::debug ())
-    ACE_DEBUG ((LM_DEBUG,
+    ACELIB_DEBUG ((LM_DEBUG,
                 ACE_TEXT ("ACE (%P|%t) SG::open_i - this=%@, ")
                 ACE_TEXT ("opened=%d, loadstatics=%d\n"),
                 this, this->is_opened_, this->no_static_svcs_));
@@ -1061,6 +1083,7 @@ ACE_Service_Gestalt::open_i (const ACE_TCHAR program_name[],
                 ACE_OS::fclose(fp);
               else
                 add_default = false;
+
             }
         }
 
@@ -1070,7 +1093,7 @@ ACE_Service_Gestalt::open_i (const ACE_TCHAR program_name[],
           (ACE_TString (ACE_DEFAULT_SVC_CONF)) == -1)
         {
           errno = ENOENT;
-          ACE_ERROR_RETURN ((LM_ERROR,
+          ACELIB_ERROR_RETURN ((LM_ERROR,
                              ACE_TEXT ("%p\n"),
                              ACE_TEXT ("enqueuing ")
                              ACE_DEFAULT_SVC_CONF
@@ -1111,6 +1134,7 @@ ACE_Service_Gestalt::open_i (const ACE_TCHAR program_name[],
   return result;
 } /* open_i () */
 
+
 int
 ACE_Service_Gestalt::is_opened (void)
 {
@@ -1131,7 +1155,7 @@ ACE_Service_Gestalt::process_commandline_directives (void)
           // Process just a single directive.
           if (this->process_directive ((sptr->fast_rep ())) != 0)
             {
-              ACE_ERROR ((LM_ERROR,
+              ACELIB_ERROR ((LM_ERROR,
                           ACE_TEXT ("ACE (%P|%t) %p\n"),
                           ACE_TEXT ("process_directive")));
               result = -1;
@@ -1143,7 +1167,9 @@ ACE_Service_Gestalt::process_commandline_directives (void)
     }
 
   return result;
+
 } /* process_commandline_directives () */
+
 
 int
 ACE_Service_Gestalt::parse_args (int argc, ACE_TCHAR *argv[])
@@ -1175,7 +1201,7 @@ ACE_Service_Gestalt::parse_args_i (int argc,
         break;
       case 'f':
         if (this->svc_conf_file_queue_->enqueue_tail (ACE_TString (get_opt.opt_arg ())) == -1)
-          ACE_ERROR_RETURN ((LM_ERROR,
+          ACELIB_ERROR_RETURN ((LM_ERROR,
                              ACE_TEXT ("%p\n"),
                              ACE_TEXT ("enqueue_tail")),
                             -1);
@@ -1203,20 +1229,22 @@ ACE_Service_Gestalt::parse_args_i (int argc,
           }
 
         if (this->svc_queue_->enqueue_tail (ACE_TString (get_opt.opt_arg ())) == -1)
-          ACE_ERROR_RETURN ((LM_ERROR,
+          ACELIB_ERROR_RETURN ((LM_ERROR,
                              ACE_TEXT ("%p\n"),
                              ACE_TEXT ("enqueue_tail")),
                             -1);
         break;
       default:
         if (ACE::debug ())
-          ACE_DEBUG ((LM_DEBUG,
+          ACELIB_DEBUG ((LM_DEBUG,
                       ACE_TEXT ("ACE (%P|%t) %c is not a ACE_Service_Config option\n"),
                       c));
       }
 
   return 0;
 } /* parse_args_i () */
+
+
 
 // Process service configuration directives from the files queued for
 // processing
@@ -1245,6 +1273,7 @@ ACE_Service_Gestalt::process_directives (bool )
     }
 
   return failed;
+
 } /* process_directives () */
 
 // Tidy up and perform last rites on a terminating ACE_Service_Gestalt.
@@ -1276,7 +1305,7 @@ ACE_Service_Gestalt::close (void)
 
 #ifndef ACE_NLOGGING
   if (ACE::debug ())
-    ACE_DEBUG ((LM_DEBUG,
+    ACELIB_DEBUG ((LM_DEBUG,
                 ACE_TEXT ("ACE (%P|%t) SG::close - complete this=%@, repo=%@, owned=%d\n"),
                 this, this->repo_, this->svc_repo_is_owned_));
 #endif
@@ -1288,6 +1317,7 @@ ACE_Service_Gestalt::close (void)
 
   return 0;
 } /* close () */
+
 
 ACE_END_VERSIONED_NAMESPACE_DECL
 

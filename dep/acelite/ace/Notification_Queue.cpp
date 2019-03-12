@@ -1,5 +1,3 @@
-// $Id: Notification_Queue.cpp 85236 2009-05-01 11:43:56Z johnnyw $
-
 #include "ace/Notification_Queue.h"
 
 #if !defined (__ACE_INLINE__)
@@ -213,7 +211,7 @@ ACE_Notification_Queue::pop_next_notification(
   current = node->get();
   free_queue_.push_front(node);
 
-  if (!this->notify_queue_.is_empty())
+  if(!this->notify_queue_.is_empty())
     {
       more_messages_queued = true;
       next = notify_queue_.head()->get();

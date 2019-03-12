@@ -1,6 +1,4 @@
 // Event_Handler.cpp
-// $Id: Event_Handler.cpp 91286 2010-08-05 09:04:31Z johnnyw $
-
 #include "ace/Event_Handler.h"
 #include "ace/OS_Errno.h"
 #include "ace/Reactor.h"
@@ -142,6 +140,7 @@ ACE_Event_Handler::resume_handler (void)
   // resuming the handler
   return ACE_Event_Handler::ACE_REACTOR_RESUMES_HANDLER;
 }
+
 
 int
 ACE_Event_Handler::handle_qos (ACE_HANDLE)
@@ -370,6 +369,26 @@ ACE_Event_Handler_var::reset (ACE_Event_Handler *p)
 {
   *this = p;
 }
+
+#if defined (ACE_HAS_CPP11)
+ACE_Event_Handler_var::operator bool() const
+{
+  return this->ptr_ == nullptr ? false : true;
+}
+
+bool
+ACE_Event_Handler_var::operator ==(std::nullptr_t) const
+{
+  return this->ptr_ == nullptr ? true : false;
+}
+
+bool
+ACE_Event_Handler_var::operator !=(std::nullptr_t) const
+{
+  return this->ptr_ == nullptr ? false : true;
+
+}
+#endif /* ACE_HAS_CPP11 */
 
 // ---------------------------------------------------------------------
 

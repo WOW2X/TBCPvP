@@ -1,5 +1,3 @@
-// $Id: Configuration_Import_Export.cpp 84565 2009-02-23 08:20:39Z johnnyw $
-
 #include "ace/Configuration_Import_Export.h"
 #include "ace/OS_Errno.h"
 #include "ace/OS_NS_stdio.h"
@@ -138,7 +136,8 @@ ACE_Registry_ImpExp::import_config (const ACE_TCHAR* filename)
               // number type
               ACE_TCHAR* endptr = 0;
               unsigned long value = ACE_OS::strtoul (end + 6, &endptr, 16);
-              if (config_.set_integer_value (section, name, value))
+              if (config_.set_integer_value (section, name,
+                                             static_cast<u_int> (value)))
                 {
                   ACE_OS::fclose (in);
                   delete [] buffer;
@@ -374,7 +373,7 @@ ACE_Registry_ImpExp::process_previous_line_format (ACE_TCHAR* buffer,
       if (*end == '\"')
         {
           // string type
-          if (config_.set_string_value (section, buffer, end + 1))
+          if(config_.set_string_value (section, buffer, end + 1))
             return -4;
         }
       else if (*end == '#')
@@ -387,6 +386,7 @@ ACE_Registry_ImpExp::process_previous_line_format (ACE_TCHAR* buffer,
     }
   return 0;
 }                // end read_previous_line_format
+
 
 ACE_Ini_ImpExp::ACE_Ini_ImpExp (ACE_Configuration& config)
     : ACE_Config_ImpExp_Base (config)
@@ -606,6 +606,7 @@ ACE_Ini_ImpExp::export_section (const ACE_Configuration_Section_Key& section,
               }
             default:
               return -3;
+
             }// end switch on type
 
           line += ACE_TEXT ("\n");
@@ -632,6 +633,7 @@ ACE_Ini_ImpExp::export_section (const ACE_Configuration_Section_Key& section,
       ++index;
     }
   return 0;
+
 }
 
 // Method to squish leading and trailing whitespaces from a string.

@@ -1,7 +1,4 @@
 // -*- C++ -*-
-//
-// $Id: config-g++-common.h 92386 2010-10-28 07:44:37Z johnnyw $
-
 // This configuration file is designed to be included by another,
 // specific configuration file.  It provides config information common
 // to all g++ platforms, including egcs.
@@ -34,6 +31,15 @@
 #  define ACE_HAS_NEW_NOTHROW
 #endif /* __GNUC__ >= 3.3 */
 
+#if (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7))
+# if __cplusplus > 199711L
+#  define ACE_HAS_CPP11
+# endif
+# if __cplusplus > 201103L
+#  define ACE_HAS_CPP14
+# endif
+#endif
+
 #if (defined (i386) || defined (__i386__)) && !defined (ACE_SIZEOF_LONG_DOUBLE)
 # define ACE_SIZEOF_LONG_DOUBLE 12
 #endif /* i386 */
@@ -63,6 +69,10 @@
 #define ACE_HAS_GCC_DEPRECATED_ATTRIBUTE 1
 #endif
 
+#if !defined (ACE_HAS_GCC_FORMAT_ATTRIBUTE)
+#define ACE_HAS_GCC_FORMAT_ATTRIBUTE 1
+#endif
+
 #if (ACE_HAS_GCC_CONSTRUCTOR_ATTRIBUTE == 1)
 # define ACE_GCC_CONSTRUCTOR_ATTRIBUTE __attribute__ ((constructor))
 #endif
@@ -73,6 +83,11 @@
 
 #if (ACE_HAS_GCC_DEPRECATED_ATTRIBUTE == 1)
 #define ACE_DEPRECATED __attribute__ ((deprecated))
+#endif
+
+#if (ACE_HAS_GCC_FORMAT_ATTRIBUTE == 1)
+# define ACE_GCC_FORMAT_ATTRIBUTE(TYPE, STR_INDEX, FIRST_INDEX) \
+   __attribute__ ((format (TYPE, STR_INDEX, FIRST_INDEX)))
 #endif
 
 // GNU g++ >= 4.x implements "#pragma once".
@@ -95,8 +110,12 @@
 #  ifndef ACE_HAS_CUSTOM_EXPORT_MACROS
 #    define ACE_HAS_CUSTOM_EXPORT_MACROS
 #  endif  /* !ACE_HAS_CUSTOM_EXPORT_MACROS */
-#  define ACE_Proper_Export_Flag __attribute__ ((visibility("default")))
-#  define ACE_Proper_Import_Flag __attribute__ ((visibility("default")))
+#  ifndef ACE_Proper_Export_Flag
+#    define ACE_Proper_Export_Flag __attribute__ ((visibility("default")))
+#  endif /* !ACE_Proper_Export_Flag */
+#  ifndef ACE_Proper_Import_Flag
+#    define ACE_Proper_Import_Flag __attribute__ ((visibility("default")))
+#  endif /* !ACE_Proper_Import_Flag */
 
 #  if (__GNUC__ > 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ >= 2))
 // Sadly, G++ 4.x silently ignores visibility attributes on

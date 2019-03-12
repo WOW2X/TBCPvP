@@ -1,6 +1,3 @@
-/*
- *  $Id: Rtems_init.c 80826 2008-03-04 14:51:23Z wotte $
- */
 
 #if defined (ACE_HAS_RTEMS)
 
@@ -177,6 +174,7 @@ struct rtems_bsdnet_config rtems_bsdnet_config = {
   {"192.168.1.2" },  /* NTP server(s) */
 #endif
 #endif /* !RTEMS_USE_BOOTP */
+
 };
 
 /*

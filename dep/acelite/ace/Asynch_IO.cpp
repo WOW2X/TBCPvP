@@ -1,5 +1,3 @@
-// $Id: Asynch_IO.cpp 91286 2010-08-05 09:04:31Z johnnyw $
-
 #include "ace/Asynch_IO.h"
 
 #if defined (ACE_HAS_WIN32_OVERLAPPED_IO) || defined (ACE_HAS_AIO_CALLS)
@@ -708,6 +706,8 @@ ACE_Asynch_Accept::Result::implementation (void) const
   return this->implementation_;
 }
 
+
+
 // *********************************************************************
 
 ACE_Asynch_Connect::ACE_Asynch_Connect (void)
@@ -790,6 +790,7 @@ ACE_Asynch_Connect::Result::connect_handle (void) const
 {
   return this->implementation ()->connect_handle ();
 }
+
 
 ACE_Asynch_Connect_Result_Impl *
 ACE_Asynch_Connect::Result::implementation (void) const
@@ -1186,6 +1187,7 @@ ACE_Service_Handler::open (ACE_HANDLE,
 {
 }
 
+
 // ************************************************************
 
 ACE_Asynch_Read_Dgram::ACE_Asynch_Read_Dgram (void)
@@ -1298,6 +1300,7 @@ ACE_Asynch_Read_Dgram::Result::implementation (void) const
 }
 
 // ************************************************************
+
 
 ACE_Asynch_Write_Dgram::ACE_Asynch_Write_Dgram (void)
   : implementation_ (0)

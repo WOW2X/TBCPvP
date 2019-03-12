@@ -1,5 +1,3 @@
-// $Id: Cleanup.cpp 91368 2010-08-16 13:03:34Z mhengstmengel $
-
 #include "ace/Cleanup.h"
 
 #if !defined (ACE_HAS_INLINED_OSCALLS)
@@ -71,6 +69,7 @@ ACE_Cleanup_Info_Node::operator!= (const ACE_Cleanup_Info_Node &o) const
   return !(*this == o);
 }
 
+
 /*****************************************************************************/
 
 ACE_OS_Exit_Info::ACE_OS_Exit_Info (void)
@@ -141,6 +140,7 @@ ACE_OS_Exit_Info::remove (void *object)
 
   return false;
 }
+
 
 void
 ACE_OS_Exit_Info::call_hooks (void)

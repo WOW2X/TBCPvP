@@ -1,10 +1,9 @@
-// $Id: Handle_Ops.cpp 91368 2010-08-16 13:03:34Z mhengstmengel $
-
 #include "ace/Handle_Ops.h"
 
 #include "ace/OS_NS_errno.h"
 #include "ace/OS_NS_fcntl.h"
 #include "ace/Time_Value.h"
+
 
 ACE_BEGIN_VERSIONED_NAMESPACE_DECL
 

@@ -1,5 +1,3 @@
-// $Id: OS_NS_sys_utsname.cpp 92712 2010-11-25 12:22:13Z johnnyw $
-
 #include "ace/OS_NS_sys_utsname.h"
 #include "ace/OS_NS_string.h"
 #include "ace/OS_NS_stdio.h"
@@ -24,9 +22,15 @@ ACE_OS::uname (ACE_utsname *name)
   size_t maxnamelen = sizeof name->nodename;
   ACE_OS::strcpy (name->sysname, "Win32");
 
+# if defined (ACE_HAS_WIN32_GETVERSION)
+  /* Since MS found it necessary to deprecate these. */
+#   pragma warning(push)
+#   pragma warning(disable:4996)
   ACE_TEXT_OSVERSIONINFO vinfo;
   vinfo.dwOSVersionInfoSize = sizeof(ACE_TEXT_OSVERSIONINFO);
   ACE_TEXT_GetVersionEx (&vinfo);
+#   pragma warning(pop)
+# endif
 
   SYSTEM_INFO sinfo;
 #   if defined (ACE_HAS_PHARLAP)
@@ -47,6 +51,7 @@ ACE_OS::uname (ACE_utsname *name)
 
   const char* unknown = "???";
 
+# if defined (ACE_HAS_WIN32_GETVERSION)
   if (
       vinfo.dwPlatformId == VER_PLATFORM_WIN32_NT
 #   if defined (VER_PLATFORM_WIN32_CE)
@@ -78,11 +83,7 @@ ACE_OS::uname (ACE_utsname *name)
       char processor[bufsize] = "Unknown";
       char subtype[bufsize] = "Unknown";
 
-#   if defined (ghs)
-    WORD arch = sinfo.u.s.wProcessorArchitecture;
-#   else
     WORD arch = sinfo.wProcessorArchitecture;
-#   endif
 
       switch (arch)
         {
@@ -202,6 +203,7 @@ ACE_OS::uname (ACE_utsname *name)
         ACE_OS::strcpy (name->machine, unknown);
     }
   else
+# endif /* !ACE_HAS_WIN32_GETVERSION */
     {
       // We don't know what this is!
 
@@ -225,7 +227,7 @@ ACE_OS::uname (ACE_utsname *name)
 
   return ACE_OS::hostname (name->nodename, maxnamelen);
 #elif defined (INTEGRITY)
-  if (!name) {
+  if(!name) {
     errno = EFAULT;
     return -1;
   }

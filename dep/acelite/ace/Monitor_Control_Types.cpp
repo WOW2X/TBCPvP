@@ -1,5 +1,3 @@
-// $Id: Monitor_Control_Types.cpp 84834 2009-03-16 12:28:51Z johnnyw $
-
 #include "ace/Monitor_Control_Types.h"
 
 #if defined (ACE_HAS_MONITOR_FRAMEWORK) && (ACE_HAS_MONITOR_FRAMEWORK == 1)
@@ -77,3 +75,5 @@ namespace ACE
 ACE_END_VERSIONED_NAMESPACE_DECL
 
 #endif /* ACE_HAS_MONITOR_FRAMEWORK==1 */
+
+

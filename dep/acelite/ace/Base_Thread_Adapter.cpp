@@ -1,5 +1,3 @@
-// $Id: Base_Thread_Adapter.cpp 92682 2010-11-23 23:41:19Z shuston $
-
 #include "ace/Base_Thread_Adapter.h"
 
 #if !defined (ACE_HAS_INLINED_OSCALLS)
@@ -85,6 +83,10 @@ ACE_Base_Thread_Adapter::sync_log_msg (const ACE_TCHAR *prg)
     (*ACE_Base_Thread_Adapter::sync_log_msg_hook_) (prg);
 }
 
+ACE_OS_Thread_Descriptor::~ACE_OS_Thread_Descriptor (void)
+{
+}
+
 ACE_OS_Thread_Descriptor *
 ACE_Base_Thread_Adapter::thr_desc_log_msg (void)
 {
@@ -123,3 +125,4 @@ ACE_THREAD_ADAPTER_NAME (void *args)
 
   return status;
 }
+

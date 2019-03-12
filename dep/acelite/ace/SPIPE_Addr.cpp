@@ -1,5 +1,3 @@
-// $Id: SPIPE_Addr.cpp 91286 2010-08-05 09:04:31Z johnnyw $
-
 #include "ace/SPIPE_Addr.h"
 #include "ace/OS_NS_string.h"
 #include "ace/OS_NS_unistd.h"
@@ -8,6 +6,8 @@
 #if !defined (__ACE_INLINE__)
 #include "ace/SPIPE_Addr.inl"
 #endif /* __ACE_INLINE__ */
+
+
 
 ACE_BEGIN_VERSIONED_NAMESPACE_DECL
 
@@ -22,14 +22,12 @@ ACE_SPIPE_Addr::dump (void) const
 
 // Set a pointer to the address.
 void
-ACE_SPIPE_Addr::set_addr (void *addr, int len)
+ACE_SPIPE_Addr::set_addr (const void *addr, int len)
 {
   ACE_TRACE ("ACE_SPIPE_Addr::set_addr");
 
   this->ACE_Addr::base_set (AF_SPIPE, len);
-  ACE_OS::memcpy ((void *) &this->SPIPE_addr_,
-                  (void *) addr,
-                  len);
+  ACE_OS::memcpy (&this->SPIPE_addr_, addr, len);
 }
 
 // Return the address.
@@ -39,6 +37,7 @@ ACE_SPIPE_Addr::get_addr (void) const
 {
   return (void *) &this->SPIPE_addr_;
 }
+
 
 // Do nothing constructor.
 
@@ -110,6 +109,7 @@ ACE_SPIPE_Addr::set (const ACE_TCHAR *addr,
     }
   else
     {
+
       if (ACE_OS::strncmp (addr,
                            ACE_TEXT ("localhost"),
                            ACE_OS::strlen ("localhost")) == 0)

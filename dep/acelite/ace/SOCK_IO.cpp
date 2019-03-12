@@ -1,5 +1,3 @@
-// $Id: SOCK_IO.cpp 91622 2010-09-06 08:26:30Z sma $
-
 #include "ace/SOCK_IO.h"
 
 #include "ace/OS_NS_sys_socket.h"
@@ -9,6 +7,8 @@
 #if !defined (__ACE_INLINE__)
 #include "ace/SOCK_IO.inl"
 #endif /* __ACE_INLINE__ */
+
+
 
 ACE_BEGIN_VERSIONED_NAMESPACE_DECL
 
@@ -34,7 +34,7 @@ ACE_SOCK_IO::recvv (iovec *io_vec,
   ACE_TRACE ("ACE_SOCK_IO::recvv");
 #if defined (FIONREAD)
   io_vec->iov_base = 0;
-  if ( ACE::handle_read_ready (this->get_handle (), timeout) != 1 )
+  if( ACE::handle_read_ready (this->get_handle (), timeout) != 1 )
     {
       return -1;
     }

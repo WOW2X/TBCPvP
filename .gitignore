@@ -1,6 +1,5 @@
 build*/
 binary*/
-bin*/
 .directory
 .mailmap
 *.orig
@@ -15,4 +14,3 @@ bin*/
 *.BACKUP.*
 *.BASE.*
 *.LOCAL.*
-nbproject/

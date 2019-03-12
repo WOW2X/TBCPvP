@@ -1,5 +1,3 @@
-// $Id: TTY_IO.cpp 91286 2010-08-05 09:04:31Z johnnyw $
-
 #include "ace/TTY_IO.h"
 #include "ace/OS_NS_errno.h"
 #include "ace/OS_NS_string.h"
@@ -25,6 +23,10 @@ namespace
 }
 
 ACE_BEGIN_VERSIONED_NAMESPACE_DECL
+
+ACE_TTY_IO::ACE_TTY_IO (void)
+{
+}
 
 ACE_TTY_IO::Serial_Params::Serial_Params (void)
 {
@@ -295,7 +297,7 @@ int ACE_TTY_IO::control (Control_Mode cmd, Serial_Params *arg) const
 
 #if defined (IGNBRK)
       // If device is not a modem set to ignore break points
-      if (arg->modem)
+      if(arg->modem)
         devpar.c_iflag &= ~IGNBRK;
       else
         devpar.c_iflag |= IGNBRK;
@@ -682,6 +684,7 @@ int ACE_TTY_IO::control (Control_Mode cmd, Serial_Params *arg) const
 
     default:
       return -1; // Wrong cmd.
+
     } // arg switch
 #else
   ACE_UNUSED_ARG (cmd);

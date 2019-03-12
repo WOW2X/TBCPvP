@@ -1,6 +1,4 @@
 // MEM_IO.cpp
-// $Id: MEM_IO.cpp 92069 2010-09-28 11:38:59Z johnnyw $
-
 #include "ace/MEM_IO.h"
 #include "ace/Handle_Set.h"
 
@@ -9,6 +7,8 @@
 #if !defined (__ACE_INLINE__)
 #include "ace/MEM_IO.inl"
 #endif /* __ACE_INLINE__ */
+
+
 
 ACE_BEGIN_VERSIONED_NAMESPACE_DECL
 
@@ -48,7 +48,7 @@ ACE_Reactive_MEM_IO::recv_buf (ACE_MEM_SAP_Node *&buf,
 
   if (retv == 0)
     {
-      //      ACE_DEBUG ((LM_INFO, "MEM_Stream closed\n"));
+      //      ACELIB_DEBUG ((LM_INFO, "MEM_Stream closed\n"));
       buf = 0;
       return 0;
     }

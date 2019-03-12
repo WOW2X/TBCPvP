@@ -1,6 +1,6 @@
-// $Id: OS_NS_stropts.cpp 91286 2010-08-05 09:04:31Z johnnyw $
-
 #include "ace/OS_NS_stropts.h"
+
+
 
 #if !defined (ACE_HAS_INLINED_OSCALLS)
 # include "ace/OS_NS_stropts.inl"
@@ -95,6 +95,7 @@ ACE_OS::ioctl (ACE_HANDLE socket,
                                 0,
                                 0);
 
+
       if (result == SOCKET_ERROR)
         {
           unsigned long dwErr = ::WSAGetLastError ();
@@ -169,6 +170,7 @@ ACE_OS::ioctl (ACE_HANDLE socket,
        ace_qos.sending_flowspec (&sending_flowspec);
        ace_qos.receiving_flowspec (&receiving_flowspec);
        ace_qos.provider_specific (*((struct iovec *) (&qos->ProviderSpecific)));
+
 
       return result;
     }

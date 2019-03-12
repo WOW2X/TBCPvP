@@ -1,11 +1,11 @@
-// $Id: SPIPE_Stream.cpp 91286 2010-08-05 09:04:31Z johnnyw $
-
 #include "ace/SPIPE_Stream.h"
 #include "ace/OS_Memory.h"
 
 #if !defined (__ACE_INLINE__)
 #include "ace/SPIPE_Stream.inl"
 #endif /* __ACE_INLINE__ */
+
+
 
 ACE_BEGIN_VERSIONED_NAMESPACE_DECL
 
